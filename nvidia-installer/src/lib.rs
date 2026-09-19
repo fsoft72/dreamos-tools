@@ -1,5 +1,5 @@
 pub mod detect;
-// pub mod exec;       // added in Task 4
+pub mod exec;
 pub mod recommend;
 pub mod secureboot;
 // pub mod state;      // added in Task 5
