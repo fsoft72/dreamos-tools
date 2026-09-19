@@ -29,7 +29,7 @@ fn main() {
 use filesys_extender::disk::{detect_live_boot_disk, list_candidates, Disk};
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Box as GtkBox, Button, Label, ListBox, ListBoxRow,
+    Application, ApplicationWindow, Box as GtkBox, Button, Image, Label, ListBox, ListBoxRow,
     Orientation, Stack,
 };
 use std::cell::RefCell;
@@ -38,6 +38,67 @@ use std::rc::Rc;
 fn format_size(bytes: u64) -> String {
     const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
     format!("{:.1} GiB", bytes as f64 / GIB)
+}
+
+const LOGO_BYTES: &[u8] = include_bytes!("../assets/ball.png");
+
+/// Invisible expanding filler. Inserted just before each page's action
+/// button so the button always sits at the bottom of the window,
+/// regardless of how much content precedes it.
+fn spacer() -> GtkBox {
+    let spacer = GtkBox::new(Orientation::Vertical, 0);
+    spacer.set_vexpand(true);
+    spacer
+}
+
+fn build_welcome_page(on_next: impl Fn() + 'static) -> GtkBox {
+    let container = GtkBox::new(Orientation::Vertical, 12);
+    container.set_margin_top(16);
+    container.set_margin_bottom(16);
+    container.set_margin_start(16);
+    container.set_margin_end(16);
+
+    let header = GtkBox::new(Orientation::Horizontal, 12);
+    let logo_bytes = gtk4::glib::Bytes::from_static(LOGO_BYTES);
+    let logo_texture = gtk4::gdk::Texture::from_bytes(&logo_bytes)
+        .expect("assets/ball.png is a valid, embedded PNG");
+    let logo = Image::from_paintable(Some(&logo_texture));
+    logo.set_pixel_size(64);
+    let title = Label::new(None);
+    title.set_markup("<span size='xx-large' weight='bold'>DreamOS File System Extender</span>");
+    header.append(&logo);
+    header.append(&title);
+    container.append(&header);
+
+    let intro = Label::new(Some(
+        "This wizard creates or grows a 'persistence' partition in the \
+         unused space of your dreamos live USB stick, so files you keep \
+         in $HOME and /etc survive a reboot.\n\n\
+         How it works:\n\
+         1. Disk list - pick the USB stick to modify (the one you booted \
+         from is pre-selected). Only removable disks are shown.\n\
+         2. Inspect - see the current partition layout and what this tool \
+         plans to do: create a new persistence partition, or grow the \
+         existing one into newly freed space.\n\
+         3. Confirm - type the exact device path (e.g. /dev/sdb) to \
+         confirm. This is a destructive operation on that disk.\n\
+         4. Executing - watch each command run, with live output.\n\
+         5. Result - see whether it succeeded, with the full log.\n\n\
+         This tool never touches a mounted partition, and only ever \
+         offers disks flagged as removable.",
+    ));
+    intro.set_wrap(true);
+    intro.set_justify(gtk4::Justification::Left);
+    intro.set_halign(gtk4::Align::Start);
+    container.append(&intro);
+    container.append(&spacer());
+
+    let next_button = Button::with_label("Get Started");
+    next_button.set_halign(gtk4::Align::End);
+    next_button.connect_clicked(move |_| on_next());
+    container.append(&next_button);
+
+    container
 }
 
 fn build_disk_list_page(
@@ -87,6 +148,7 @@ fn build_disk_list_page(
 
     next_button.connect_clicked(move |_| on_next());
 
+    list.set_vexpand(true);
     container.append(&list);
     container.append(&next_button);
     container
@@ -115,10 +177,13 @@ fn build_inspect_page(
 ) -> GtkBox {
     let container = GtkBox::new(Orientation::Vertical, 8);
     let summary_label = Label::new(None);
+    summary_label.set_halign(gtk4::Align::Start);
+    summary_label.set_valign(gtk4::Align::Start);
     let next_button = Button::with_label("Next");
     next_button.set_sensitive(false);
 
     container.append(&summary_label);
+    container.append(&spacer());
     container.append(&next_button);
 
     {
@@ -164,6 +229,7 @@ fn build_confirm_page(
 
     container.append(&instructions);
     container.append(&entry);
+    container.append(&spacer());
     container.append(&apply_button);
 
     {
@@ -331,6 +397,12 @@ fn run_app() {
     app.connect_activate(|app| {
         let stack = Stack::new();
 
+        let stack_for_welcome_nav = stack.clone();
+        let welcome_page = build_welcome_page(move || {
+            stack_for_welcome_nav.set_visible_child_name("disk_list");
+        });
+        stack.add_titled(&welcome_page, Some("welcome"), "Welcome");
+
         let selected_disk: Rc<RefCell<Option<Disk>>> = Rc::new(RefCell::new(None));
         let stack_for_nav = stack.clone();
         let disk_list_page = build_disk_list_page(selected_disk.clone(), move || {
@@ -361,7 +433,7 @@ fn run_app() {
         let result_page = build_result_page(result_text.clone());
         stack.add_titled(&result_page, Some("result"), "Result");
 
-        stack.set_visible_child_name("disk_list");
+        stack.set_visible_child_name("welcome");
 
         let window = ApplicationWindow::builder()
             .application(app)
