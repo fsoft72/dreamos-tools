@@ -101,11 +101,21 @@ pub fn parse_parted_free(output: &str) -> Result<Vec<PartedEntry>, DiskOpError> 
             continue; // disk summary line
         }
 
-        let number = first.parse::<u32>().ok();
         let start_bytes = parse_bytes_field(fields.get(1).copied().unwrap_or(""))?;
         let end_bytes = parse_bytes_field(fields.get(2).copied().unwrap_or(""))?;
         let size_bytes = parse_bytes_field(fields.get(3).copied().unwrap_or(""))?;
         let fs_or_free = fields.get(4).copied().unwrap_or("").to_string();
+
+        // Real parted -m output gives free-space lines a numeric first field
+        // too (observed: it echoes an adjacent partition's number, not a
+        // free-space "number" of its own) - it is never a real partition
+        // number, so ignore it whenever the line is free space. Only real
+        // partition lines get a meaningful `number`.
+        let number = if fs_or_free == "free" {
+            None
+        } else {
+            first.parse::<u32>().ok()
+        };
 
         entries.push(PartedEntry {
             number,
@@ -231,6 +241,24 @@ mod parted_tests {
         let entries = parse_parted_free(out).unwrap();
         assert!(entries.iter().all(|e| e.start_bytes != 16008609792));
     }
+
+    // Captured from a real loopback device (see Task 6's manual loopback
+    // verification): parted's machine-readable free-space lines carry a
+    // numeric first field too (here always "1", echoing the adjacent real
+    // partition rather than a free-space number of their own). That field
+    // must never be treated as a real partition number for free entries.
+    #[test]
+    fn free_entries_never_get_a_number_even_when_the_raw_field_looks_numeric() {
+        let out = include_str!("../tests/fixtures/parted_free_real_loopback.txt");
+        let entries = parse_parted_free(out).unwrap();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].fs_or_free, "free");
+        assert_eq!(entries[0].number, None);
+        assert_eq!(entries[1].fs_or_free, "ext4");
+        assert_eq!(entries[1].number, Some(1));
+        assert_eq!(entries[2].fs_or_free, "free");
+        assert_eq!(entries[2].number, None);
+    }
 }
 
 pub fn strip_partition_suffix(partition_path: &str) -> String {
@@ -332,6 +360,28 @@ mod plan_tests {
         let partitions = vec![partition("/dev/sdb1", None)];
         let plan = compute_plan("/dev/sdb", &entries, &partitions);
         assert!(matches!(plan, Plan::NoAction { .. }));
+    }
+
+    // Regression: the real loopback capture (Task 6) showed free-space lines
+    // carry a numeric field too, always "1" here despite two free regions
+    // and one partition also numbered "1". If that raw number leaked into
+    // `Plan::Create`'s "next partition number" calculation, this would
+    // wrongly conflict with the real partition 1 instead of picking 2.
+    #[test]
+    fn create_plan_ignores_free_entries_spurious_number_field() {
+        let out = include_str!("../tests/fixtures/parted_free_real_loopback.txt");
+        let entries = parse_parted_free(out).unwrap();
+        let partitions = vec![partition("/dev/loop12p1", None)]; // no persistence label
+        let plan = compute_plan("/dev/loop12p", &entries, &partitions);
+        assert_eq!(
+            plan,
+            Plan::Create {
+                device: "/dev/loop12p".into(),
+                partition_number: 2,
+                start_bytes: 104858112,
+                end_bytes: 209715199,
+            }
+        );
     }
 }
 
