@@ -142,6 +142,180 @@ fn build_inspect_page(
     container
 }
 
+use filesys_extender::exec::{execute_steps, steps_for_plan, write_persistence_conf, Step};
+use gtk4::{Entry, TextView};
+
+fn build_confirm_page(
+    selected_disk: Rc<RefCell<Option<Disk>>>,
+    on_apply: impl Fn() + 'static,
+) -> GtkBox {
+    let container = GtkBox::new(Orientation::Vertical, 8);
+    let instructions = Label::new(None);
+    let entry = Entry::new();
+    let apply_button = Button::with_label("Apply");
+    apply_button.set_sensitive(false);
+
+    container.append(&instructions);
+    container.append(&entry);
+    container.append(&apply_button);
+
+    {
+        let selected_disk = selected_disk.clone();
+        let instructions = instructions.clone();
+        container.connect_map(move |_| {
+            if let Some(disk) = selected_disk.borrow().clone() {
+                instructions.set_text(&format!(
+                    "Type '{}' exactly to confirm this destructive operation:",
+                    disk.path
+                ));
+            }
+        });
+    }
+
+    {
+        let selected_disk = selected_disk.clone();
+        let apply_button = apply_button.clone();
+        entry.connect_changed(move |entry| {
+            let expected = selected_disk.borrow().as_ref().map(|d| d.path.clone());
+            let matches = expected.as_deref() == Some(entry.text().as_str());
+            apply_button.set_sensitive(matches);
+        });
+    }
+
+    apply_button.connect_clicked(move |_| on_apply());
+    container
+}
+
+#[derive(Debug)]
+enum ExecMsg {
+    StepStarted(String),
+    StepOutput(String),
+    StepFailed(String),
+    Finished(bool),
+}
+
+/// Builds the executing page. Returns the page widget plus a start closure
+/// the confirm page's Apply button invokes to kick off execution. The
+/// spawned worker thread only ever sends owned, `Send` data (`ExecMsg`)
+/// over a `std::sync::mpsc` channel - all GTK/state mutation happens back
+/// on the main thread inside a `timeout_add_local` poll, since GTK widgets
+/// (and `Rc<RefCell<_>>` state) are not `Send` and must never be touched
+/// from the worker thread.
+fn build_executing_page(
+    plan: Rc<RefCell<Option<Plan>>>,
+    result_text: Rc<RefCell<String>>,
+    stack: Stack,
+) -> (GtkBox, Rc<dyn Fn()>) {
+    let container = GtkBox::new(Orientation::Vertical, 8);
+    let log_view = TextView::new();
+    log_view.set_editable(false);
+    container.append(&log_view);
+
+    let start: Rc<dyn Fn()> = Rc::new(move || {
+        let Some(current_plan) = plan.borrow().clone() else { return };
+        let (tx, rx) = std::sync::mpsc::channel::<ExecMsg>();
+        let steps = steps_for_plan(&current_plan);
+
+        {
+            let buf = log_view.buffer();
+            let result_text = result_text.clone();
+            let stack = stack.clone();
+            gtk4::glib::source::timeout_add_local(std::time::Duration::from_millis(50), move || {
+                let mut finished = false;
+                for msg in rx.try_iter() {
+                    let mut end = buf.end_iter();
+                    match &msg {
+                        ExecMsg::StepStarted(desc) => buf.insert(&mut end, &format!("==> {desc}\n")),
+                        ExecMsg::StepOutput(line) => buf.insert(&mut end, &format!("{line}\n")),
+                        ExecMsg::StepFailed(err) => {
+                            buf.insert(&mut end, &format!("FAILED: {err}\n"));
+                            result_text.borrow_mut().push_str(&format!("FAILED: {err}\n"));
+                        }
+                        ExecMsg::Finished(success) => {
+                            buf.insert(
+                                &mut end,
+                                if *success { "Done.\n" } else { "Stopped after failure.\n" },
+                            );
+                            stack.set_visible_child_name("result");
+                            finished = true;
+                        }
+                    }
+                }
+                if finished {
+                    gtk4::glib::ControlFlow::Break
+                } else {
+                    gtk4::glib::ControlFlow::Continue
+                }
+            });
+        }
+
+        let sender = tx;
+        std::thread::spawn(move || {
+            let sender_for_cb = sender.clone();
+            let outcome = execute_steps(&steps, move |step, res| {
+                let _ = sender_for_cb.send(ExecMsg::StepStarted(step.description.clone()));
+                match res {
+                    Ok(out) => {
+                        let _ = sender_for_cb.send(ExecMsg::StepOutput(out.stdout.clone()));
+                    }
+                    Err(e) => {
+                        let _ = sender_for_cb.send(ExecMsg::StepFailed(e.to_string()));
+                    }
+                }
+            });
+
+            if outcome.is_ok() {
+                if let Plan::Create { device, partition_number, .. }
+                | Plan::Grow { device, partition_number, .. } = &current_plan
+                {
+                    let mount_dir = format!("/mnt/filesys-extender-{partition_number}");
+                    let _ = std::fs::create_dir_all(&mount_dir);
+                    let mount_result = execute_steps(
+                        &[Step {
+                            description: "Mount persistence partition".into(),
+                            argv: vec![
+                                "mount".into(),
+                                format!("{device}{partition_number}"),
+                                mount_dir.clone(),
+                            ],
+                        }],
+                        |_, _| {},
+                    );
+                    if mount_result.is_ok() {
+                        let _ = write_persistence_conf(&mount_dir);
+                        let _ = execute_steps(
+                            &[Step {
+                                description: "Unmount".into(),
+                                argv: vec!["umount".into(), mount_dir],
+                            }],
+                            |_, _| {},
+                        );
+                    }
+                }
+            }
+
+            let _ = sender.send(ExecMsg::Finished(outcome.is_ok()));
+        });
+    });
+
+    (container, start)
+}
+
+fn build_result_page(result_text: Rc<RefCell<String>>) -> GtkBox {
+    let container = GtkBox::new(Orientation::Vertical, 8);
+    let label = Label::new(None);
+    container.append(&label);
+    container.connect_map(move |_| {
+        let text = result_text.borrow();
+        if text.is_empty() {
+            label.set_text("Completed successfully.");
+        } else {
+            label.set_text(&text);
+        }
+    });
+    container
+}
+
 fn run_app() {
     let app = Application::builder()
         .application_id("dev.dreamos.filesys-extender")
@@ -164,9 +338,22 @@ fn run_app() {
         });
         stack.add_titled(&inspect_page, Some("inspect"), "Inspect");
 
-        stack.add_titled(&Label::new(Some("Confirm (Task 10)")), Some("confirm"), "Confirm");
-        stack.add_titled(&Label::new(Some("Executing (Task 10)")), Some("executing"), "Executing");
-        stack.add_titled(&Label::new(Some("Result (Task 10)")), Some("result"), "Result");
+        let result_text: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
+
+        let (executing_page, start_execution) =
+            build_executing_page(plan.clone(), result_text.clone(), stack.clone());
+        stack.add_titled(&executing_page, Some("executing"), "Executing");
+
+        let stack_for_confirm_nav = stack.clone();
+        let confirm_page = build_confirm_page(selected_disk.clone(), move || {
+            stack_for_confirm_nav.set_visible_child_name("executing");
+            start_execution();
+        });
+        stack.add_titled(&confirm_page, Some("confirm"), "Confirm");
+
+        let result_page = build_result_page(result_text.clone());
+        stack.add_titled(&result_page, Some("result"), "Result");
+
         stack.set_visible_child_name("disk_list");
 
         let window = ApplicationWindow::builder()
