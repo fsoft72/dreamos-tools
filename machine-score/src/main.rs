@@ -11,6 +11,16 @@ fn load_logo_texture(ctx: &egui::Context) -> egui::TextureHandle {
     ctx.load_texture("logo", color_image, egui::TextureOptions::default())
 }
 
+fn tier_label(tier: machine_score::scoring::Tier) -> &'static str {
+    use machine_score::scoring::Tier;
+    match tier {
+        Tier::Low => "Low",
+        Tier::Medium => "Medium",
+        Tier::High => "High",
+        Tier::Ultra => "Ultra",
+    }
+}
+
 fn draw_header(ui: &mut egui::Ui, logo: &egui::TextureHandle) {
     ui.horizontal(|ui| {
         ui.image((logo.id(), egui::vec2(48.0, 48.0)));
@@ -167,7 +177,46 @@ impl eframe::App for MachineScoreApp {
                     }
                 }
                 Screen::Results => {
-                    ui.label("Results screen - Task 10");
+                    if let Some(result) = self.result.clone() {
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new(format!("{:.0}", result.composite)).size(64.0).strong());
+                        ui.label("Overall Score (0-100)");
+                        ui.add_space(16.0);
+
+                        ui.label(format!("CPU: {}", result.cpu_model));
+                        ui.label(format!("GPU: {}", result.gpu_name));
+                        ui.label(format!("RAM: {:.0} GiB", result.ram_total_gb));
+                        ui.add_space(8.0);
+
+                        for (label, component) in [
+                            ("CPU", result.scores.cpu),
+                            ("GPU", result.scores.gpu),
+                            ("RAM", result.scores.ram),
+                            ("Storage", result.scores.storage),
+                        ] {
+                            let note = if component.estimated { " (estimated - model not in database)" } else { "" };
+                            ui.label(format!("{label} score: {:.0}{note}", component.score));
+                        }
+
+                        ui.add_space(16.0);
+                        ui.heading("Readiness");
+                        ui.label(format!("Gaming: {}", tier_label(result.readiness.gaming)));
+                        ui.label(format!("Godot: {}", tier_label(result.readiness.godot)));
+                        ui.label(format!("Unreal Engine 5: {}", tier_label(result.readiness.unreal_engine_5)));
+
+                        ui.add_space(16.0);
+                        ui.horizontal(|ui| {
+                            if ui.button("Restart").clicked() {
+                                self.result = None;
+                                self.screen = Screen::Welcome;
+                            }
+                            if ui.button("Close").clicked() {
+                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                            }
+                        });
+                    } else {
+                        ui.label("No result yet.");
+                    }
                 }
             }
         });
