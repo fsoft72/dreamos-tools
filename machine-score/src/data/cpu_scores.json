@@ -1,0 +1,8 @@
+[
+  { "model_substring": "Ryzen 9 7950X", "score": 95 },
+  { "model_substring": "Ryzen 7 5800X", "score": 78 },
+  { "model_substring": "Ryzen 5 5600X", "score": 68 },
+  { "model_substring": "Core i9-13900K", "score": 96 },
+  { "model_substring": "Core i7-12700K", "score": 82 },
+  { "model_substring": "Core i5-12400", "score": 62 }
+]

@@ -1,0 +1,8 @@
+[
+  { "model_substring": "RTX 4090", "score": 100 },
+  { "model_substring": "RTX 4070", "score": 85 },
+  { "model_substring": "RTX 3060", "score": 65 },
+  { "model_substring": "RX 7900 XT", "score": 92 },
+  { "model_substring": "RX 6600", "score": 55 },
+  { "model_substring": "Iris Xe", "score": 20 }
+]

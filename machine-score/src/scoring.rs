@@ -121,6 +121,21 @@ fn lookup(model: &str, db: &[DbEntry]) -> Option<f64> {
         .map(|entry| entry.score)
 }
 
+// Placeholder datasets - a small, illustrative set of known CPU/GPU
+// models, not a curated real benchmark database. Swap the JSON files
+// under src/data/ for a real dataset later; no code changes needed
+// as long as the schema (model_substring, score) stays the same.
+const CPU_DATABASE_JSON: &str = include_str!("data/cpu_scores.json");
+const GPU_DATABASE_JSON: &str = include_str!("data/gpu_scores.json");
+
+pub fn load_cpu_database() -> Vec<DbEntry> {
+    serde_json::from_str(CPU_DATABASE_JSON).expect("embedded cpu_scores.json is valid")
+}
+
+pub fn load_gpu_database() -> Vec<DbEntry> {
+    serde_json::from_str(GPU_DATABASE_JSON).expect("embedded gpu_scores.json is valid")
+}
+
 /// Fallback CPU estimate when no database match is found: normalizes
 /// cores * base_clock_mhz against an 8-core/4GHz reference point.
 /// Placeholder constant, tunable once a real dataset exists.
@@ -293,5 +308,29 @@ mod composite_tests {
             Tier::High => 2,
             Tier::Ultra => 3,
         }
+    }
+}
+
+#[cfg(test)]
+mod database_tests {
+    use super::*;
+
+    #[test]
+    fn cpu_database_loads_and_parses() {
+        let db = load_cpu_database();
+        assert!(!db.is_empty());
+    }
+
+    #[test]
+    fn gpu_database_loads_and_parses() {
+        let db = load_gpu_database();
+        assert!(!db.is_empty());
+    }
+
+    #[test]
+    fn loaded_cpu_database_is_usable_by_score_cpu() {
+        let db = load_cpu_database();
+        let result = score_cpu("AMD Ryzen 7 5800X 8-Core Processor", 8, 3800, &db);
+        assert!(!result.estimated);
     }
 }
