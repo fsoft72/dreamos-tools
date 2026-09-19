@@ -2,6 +2,13 @@ use std::os::unix::process::CommandExt;
 use std::process::Command;
 
 fn ensure_root() {
+    // Escape hatch for UI-only iteration (see scripts/run-filesys-extender.sh):
+    // skips the pkexec re-exec so the wizard's screens can be exercised
+    // without a polkit prompt each run. Disk-op steps still fail without
+    // real root, as expected.
+    if std::env::var_os("FILESYS_EXTENDER_SKIP_ROOT").is_some() {
+        return;
+    }
     // SAFETY: geteuid() is a pure syscall with no preconditions.
     let euid = unsafe { libc::geteuid() };
     if euid == 0 {
