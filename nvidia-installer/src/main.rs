@@ -28,7 +28,7 @@ fn main() {
 
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Box as GtkBox, Button, CheckButton, Entry, Label,
+    Application, ApplicationWindow, Box as GtkBox, Button, CheckButton, Entry, Image, Label,
     Orientation, PasswordEntry, Stack, TextView,
 };
 use nvidia_installer::detect::{detect_gpus, CurrentDriver, GpuDevice};
@@ -40,6 +40,8 @@ use nvidia_installer::secureboot::{
 use nvidia_installer::state::{clear_state, load_state, save_state, State};
 use std::cell::RefCell;
 use std::rc::Rc;
+
+const LOGO_BYTES: &[u8] = include_bytes!("../assets/ball.png");
 
 fn spacer() -> GtkBox {
     let spacer = GtkBox::new(Orientation::Vertical, 0);
@@ -62,10 +64,17 @@ fn build_welcome_page(on_next: impl Fn() + 'static) -> GtkBox {
     container.set_margin_start(16);
     container.set_margin_end(16);
 
+    let header = GtkBox::new(Orientation::Horizontal, 12);
+    let logo_bytes = gtk4::glib::Bytes::from_static(LOGO_BYTES);
+    let logo_texture = gtk4::gdk::Texture::from_bytes(&logo_bytes)
+        .expect("assets/ball.png is a valid, embedded PNG");
+    let logo = Image::from_paintable(Some(&logo_texture));
+    logo.set_pixel_size(64);
     let title = Label::new(None);
     title.set_markup("<span size='xx-large' weight='bold'>DreamOS NVIDIA Driver Installer</span>");
-    title.set_halign(gtk4::Align::Start);
-    container.append(&title);
+    header.append(&logo);
+    header.append(&title);
+    container.append(&header);
 
     let intro = Label::new(Some(
         "This wizard detects NVIDIA GPUs and installs the proprietary \
