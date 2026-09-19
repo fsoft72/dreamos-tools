@@ -1,0 +1,8 @@
+01:00.0 VGA compatible controller [0300]: NVIDIA Corporation GA106 [GeForce RTX 3060] [10de:2503] (rev a1)
+	Subsystem: Micro-Star International Co., Ltd. [MSI] Device [1462:3897]
+	Kernel driver in use: nouveau
+	Kernel modules: nouveau
+01:00.1 Audio device [0403]: NVIDIA Corporation GA106 High Definition Audio Controller [10de:228e] (rev a1)
+	Subsystem: Micro-Star International Co., Ltd. [MSI] Device [1462:3897]
+	Kernel driver in use: snd_hda_intel
+	Kernel modules: snd_hda_intel
