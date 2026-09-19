@@ -85,6 +85,63 @@ fn build_disk_list_page(
     container
 }
 
+use filesys_extender::disk::{compute_plan, inspect_free_space, Plan};
+
+fn describe_plan(plan: &Plan) -> String {
+    match plan {
+        Plan::Create { device, start_bytes, end_bytes, .. } => format!(
+            "Will create a new ext4 'persistence' partition on {device}, using {} of free space.",
+            format_size(end_bytes - start_bytes)
+        ),
+        Plan::Grow { device, new_end_bytes, .. } => format!(
+            "Will grow the existing 'persistence' partition on {device} up to {}.",
+            format_size(*new_end_bytes)
+        ),
+        Plan::NoAction { reason } => format!("Nothing to do: {reason}"),
+    }
+}
+
+fn build_inspect_page(
+    selected_disk: Rc<RefCell<Option<Disk>>>,
+    plan: Rc<RefCell<Option<Plan>>>,
+    on_next: impl Fn() + 'static,
+) -> GtkBox {
+    let container = GtkBox::new(Orientation::Vertical, 8);
+    let summary_label = Label::new(None);
+    let next_button = Button::with_label("Next");
+    next_button.set_sensitive(false);
+
+    container.append(&summary_label);
+    container.append(&next_button);
+
+    {
+        let selected_disk = selected_disk.clone();
+        let plan = plan.clone();
+        let summary_label = summary_label.clone();
+        let next_button = next_button.clone();
+        container.connect_map(move |_| {
+            let Some(disk) = selected_disk.borrow().clone() else {
+                summary_label.set_text("No disk selected.");
+                return;
+            };
+            let entries = match inspect_free_space(&disk.path) {
+                Ok(entries) => entries,
+                Err(e) => {
+                    summary_label.set_text(&format!("Failed to inspect {}: {e}", disk.path));
+                    return;
+                }
+            };
+            let computed = compute_plan(&disk.path, &entries, &disk.partitions);
+            summary_label.set_text(&describe_plan(&computed));
+            next_button.set_sensitive(!matches!(computed, Plan::NoAction { .. }));
+            *plan.borrow_mut() = Some(computed);
+        });
+    }
+
+    next_button.connect_clicked(move |_| on_next());
+    container
+}
+
 fn run_app() {
     let app = Application::builder()
         .application_id("dev.dreamos.filesys-extender")
@@ -100,7 +157,13 @@ fn run_app() {
         });
         stack.add_titled(&disk_list_page, Some("disk_list"), "Disk list");
 
-        stack.add_titled(&Label::new(Some("Inspect (Task 9)")), Some("inspect"), "Inspect");
+        let plan: Rc<RefCell<Option<Plan>>> = Rc::new(RefCell::new(None));
+        let stack_for_inspect_nav = stack.clone();
+        let inspect_page = build_inspect_page(selected_disk.clone(), plan.clone(), move || {
+            stack_for_inspect_nav.set_visible_child_name("confirm");
+        });
+        stack.add_titled(&inspect_page, Some("inspect"), "Inspect");
+
         stack.add_titled(&Label::new(Some("Confirm (Task 10)")), Some("confirm"), "Confirm");
         stack.add_titled(&Label::new(Some("Executing (Task 10)")), Some("executing"), "Executing");
         stack.add_titled(&Label::new(Some("Result (Task 10)")), Some("result"), "Result");
