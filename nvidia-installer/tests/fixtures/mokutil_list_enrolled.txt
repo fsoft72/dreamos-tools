@@ -1,0 +1,14 @@
+[key 1]
+SHA1 Fingerprint: aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99:00:11:22:33
+	Issuer:
+		CN=dreamos nvidia-installer MOK
+	Subject:
+		CN=dreamos nvidia-installer MOK
+	Serial Number: 01
+[key 2]
+SHA1 Fingerprint: 11:22:33:44:55:66:77:88:99:00:aa:bb:cc:dd:ee:ff:00:11:22:33
+	Issuer:
+		CN=Debian Secure Boot CA
+	Subject:
+		CN=Debian Secure Boot Signer
+	Serial Number: 02
