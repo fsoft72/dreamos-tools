@@ -27,6 +27,10 @@ fn desc_label(ui: &mut egui::Ui, text: impl Into<String>) -> egui::Response {
     ui.label(egui::RichText::new(text.into()).size(DESC_TEXT_SIZE))
 }
 
+fn big_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
+    ui.add_sized([120.0, 44.0], egui::Button::new(egui::RichText::new(text).size(18.0)))
+}
+
 fn draw_header(ui: &mut egui::Ui, logo: &egui::TextureHandle, large: bool) {
     let (logo_size, title) = if large {
         (96.0, egui::RichText::new("DreamOS Machine Score").size(40.0).strong())
@@ -148,29 +152,31 @@ impl eframe::App for MachineScoreApp {
         // height calculation feeds back into itself frame over frame -
         // visibly a runaway-growing bottom bar that eventually covers the
         // whole window, worst during continuous repaint (Scoring screen).
-        egui::TopBottomPanel::bottom("actions").exact_height(48.0).show(ctx, |ui| {
-            ui.add_space(4.0);
+        egui::TopBottomPanel::bottom("actions").exact_height(64.0).show(ctx, |ui| {
+            ui.add_space(8.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 match self.screen {
                     Screen::Welcome => {
-                        if ui.button("Start").clicked() {
+                        if big_button(ui, "Start").clicked() {
                             self.screen = Screen::Scoring;
                         }
                     }
                     Screen::Scoring => {
                         let running = self.scoring_rx.is_some();
-                        if ui.add_enabled(!running, egui::Button::new("Run Scoring")).clicked() {
-                            self.start_scoring();
-                        }
+                        ui.add_enabled_ui(!running, |ui| {
+                            if big_button(ui, "Run Scoring").clicked() {
+                                self.start_scoring();
+                            }
+                        });
                     }
                     Screen::Results => {
                         // right_to_left: first added ends up rightmost, so
                         // add Close first to keep "Restart  Close" reading
                         // order left-to-right.
-                        if ui.button("Close").clicked() {
+                        if big_button(ui, "Close").clicked() {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
-                        if ui.button("Restart").clicked() {
+                        if big_button(ui, "Restart").clicked() {
                             self.result = None;
                             self.screen = Screen::Welcome;
                         }
@@ -183,6 +189,11 @@ impl eframe::App for MachineScoreApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             draw_header(ui, &logo, self.screen == Screen::Welcome);
 
+            // Scrollable: Results in particular can be taller than the
+            // window (score + all component/readiness lines), and without
+            // this the last lines were silently clipped at the window edge
+            // instead of being reachable.
+            egui::ScrollArea::vertical().show(ui, |ui| {
             match self.screen {
                 Screen::Welcome => {
                     desc_label(
@@ -253,13 +264,14 @@ impl eframe::App for MachineScoreApp {
                     }
                 }
             }
+            });
         });
     }
 }
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([700.0, 500.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([700.0, 650.0]),
         ..Default::default()
     };
     eframe::run_native(
