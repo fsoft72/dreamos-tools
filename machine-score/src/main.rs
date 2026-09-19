@@ -142,7 +142,13 @@ impl eframe::App for MachineScoreApp {
         // Bottom action bar, right-aligned, on every screen - added before
         // CentralPanel so it reserves its space and the button(s) stay
         // pinned to the window bottom regardless of content length above.
-        egui::TopBottomPanel::bottom("actions").show(ctx, |ui| {
+        //
+        // exact_height is required: without it, right_to_left(Align::Center)
+        // has no fixed height to center within, so the panel's intrinsic
+        // height calculation feeds back into itself frame over frame -
+        // visibly a runaway-growing bottom bar that eventually covers the
+        // whole window, worst during continuous repaint (Scoring screen).
+        egui::TopBottomPanel::bottom("actions").exact_height(48.0).show(ctx, |ui| {
             ui.add_space(4.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 match self.screen {
