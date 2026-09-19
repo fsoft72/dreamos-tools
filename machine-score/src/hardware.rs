@@ -47,6 +47,42 @@ pub fn detect_cpu_ram_storage() -> CpuRamStorageInfo {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct GpuAdapterInfo {
+    pub name: String,
+    pub is_discrete: bool,
+}
+
+pub fn pick_gpu_adapter(adapters: &[GpuAdapterInfo]) -> Option<GpuAdapterInfo> {
+    adapters
+        .iter()
+        .find(|a| a.is_discrete)
+        .or_else(|| adapters.first())
+        .cloned()
+}
+
+pub fn detect_gpu() -> GpuAdapterInfo {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::all(),
+        ..wgpu::InstanceDescriptor::new_without_display_handle()
+    });
+    let adapters = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::all()));
+    let mapped: Vec<GpuAdapterInfo> = adapters
+        .iter()
+        .map(|a| {
+            let info = a.get_info();
+            GpuAdapterInfo {
+                name: info.name,
+                is_discrete: info.device_type == wgpu::DeviceType::DiscreteGpu,
+            }
+        })
+        .collect();
+    pick_gpu_adapter(&mapped).unwrap_or(GpuAdapterInfo {
+        name: "Unknown GPU".into(),
+        is_discrete: false,
+    })
+}
+
 #[cfg(test)]
 mod classify_tests {
     use super::*;
@@ -76,5 +112,34 @@ mod classify_tests {
     #[test]
     fn nvme_detection_is_case_insensitive() {
         assert_eq!(classify_storage(DiskKind::SSD, "NVME0N1"), StorageKind::Nvme);
+    }
+}
+
+#[cfg(test)]
+mod pick_gpu_tests {
+    use super::*;
+
+    #[test]
+    fn prefers_first_discrete_adapter_over_integrated() {
+        let adapters = vec![
+            GpuAdapterInfo { name: "Intel Iris Xe".into(), is_discrete: false },
+            GpuAdapterInfo { name: "NVIDIA RTX 4070".into(), is_discrete: true },
+        ];
+        let picked = pick_gpu_adapter(&adapters).unwrap();
+        assert_eq!(picked.name, "NVIDIA RTX 4070");
+    }
+
+    #[test]
+    fn falls_back_to_first_adapter_when_none_discrete() {
+        let adapters = vec![
+            GpuAdapterInfo { name: "Intel Iris Xe".into(), is_discrete: false },
+        ];
+        let picked = pick_gpu_adapter(&adapters).unwrap();
+        assert_eq!(picked.name, "Intel Iris Xe");
+    }
+
+    #[test]
+    fn returns_none_for_empty_adapter_list() {
+        assert_eq!(pick_gpu_adapter(&[]), None);
     }
 }
