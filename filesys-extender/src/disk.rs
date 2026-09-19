@@ -233,6 +233,30 @@ mod parted_tests {
     }
 }
 
+pub fn strip_partition_suffix(partition_path: &str) -> String {
+    let trimmed = partition_path.trim_end_matches(|c: char| c.is_ascii_digit());
+    if let Some(base) = trimmed.strip_suffix('p') {
+        if base.chars().last().map_or(false, |c| c.is_ascii_digit()) {
+            return base.to_string();
+        }
+    }
+    trimmed.to_string()
+}
+
+pub fn parse_live_medium_source(findmnt_output: &str) -> Option<String> {
+    let src = findmnt_output.trim();
+    if src.is_empty() {
+        return None;
+    }
+    Some(src.to_string())
+}
+
+pub fn detect_live_boot_disk() -> Option<String> {
+    let out = crate::exec::run_cmd(&["findmnt", "-no", "SOURCE", "/run/live/medium"]).ok()?;
+    let partition = parse_live_medium_source(&out.stdout)?;
+    Some(strip_partition_suffix(&partition))
+}
+
 #[cfg(test)]
 mod plan_tests {
     use super::*;
@@ -308,5 +332,28 @@ mod plan_tests {
         let partitions = vec![partition("/dev/sdb1", None)];
         let plan = compute_plan("/dev/sdb", &entries, &partitions);
         assert!(matches!(plan, Plan::NoAction { .. }));
+    }
+}
+
+#[cfg(test)]
+mod live_boot_tests {
+    use super::*;
+
+    #[test]
+    fn strips_simple_partition_suffix() {
+        assert_eq!(strip_partition_suffix("/dev/sdb1"), "/dev/sdb");
+        assert_eq!(strip_partition_suffix("/dev/sdb12"), "/dev/sdb");
+    }
+
+    #[test]
+    fn strips_nvme_style_partition_suffix() {
+        assert_eq!(strip_partition_suffix("/dev/nvme0n1p1"), "/dev/nvme0n1");
+    }
+
+    #[test]
+    fn parse_live_medium_source_handles_empty_and_present_output() {
+        assert_eq!(parse_live_medium_source(""), None);
+        assert_eq!(parse_live_medium_source("\n"), None);
+        assert_eq!(parse_live_medium_source("/dev/sdb1\n"), Some("/dev/sdb1".to_string()));
     }
 }
