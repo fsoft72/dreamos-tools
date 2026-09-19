@@ -26,14 +26,91 @@ enum Screen {
     Results,
 }
 
+enum ScoringMsg {
+    DetectingCpu,
+    DetectingGpu,
+    DetectingRam,
+    DetectingStorage,
+    Done(ResultData),
+}
+
+#[derive(Clone)]
+struct ResultData {
+    cpu_model: String,
+    gpu_name: String,
+    ram_total_gb: f64,
+    scores: machine_score::scoring::ComponentScores,
+    composite: f64,
+    readiness: machine_score::scoring::TargetReadiness,
+}
+
 struct MachineScoreApp {
     logo: Option<egui::TextureHandle>,
     screen: Screen,
+    scoring_rx: Option<std::sync::mpsc::Receiver<ScoringMsg>>,
+    progress_label: String,
+    result: Option<ResultData>,
 }
 
 impl MachineScoreApp {
     fn new() -> Self {
-        Self { logo: None, screen: Screen::Welcome }
+        Self {
+            logo: None,
+            screen: Screen::Welcome,
+            scoring_rx: None,
+            progress_label: String::new(),
+            result: None,
+        }
+    }
+
+    fn start_scoring(&mut self) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.scoring_rx = Some(rx);
+        self.progress_label = "Starting...".into();
+
+        std::thread::spawn(move || {
+            use machine_score::{hardware, scoring};
+
+            let _ = tx.send(ScoringMsg::DetectingCpu);
+            let cpu_ram_storage = hardware::detect_cpu_ram_storage();
+
+            let _ = tx.send(ScoringMsg::DetectingGpu);
+            let gpu = hardware::detect_gpu();
+
+            let _ = tx.send(ScoringMsg::DetectingRam);
+            let ram_score = scoring::score_ram(cpu_ram_storage.ram_total_gb);
+
+            let _ = tx.send(ScoringMsg::DetectingStorage);
+            let storage_score = scoring::score_storage(cpu_ram_storage.storage_kind);
+
+            let cpu_db = scoring::load_cpu_database();
+            let gpu_db = scoring::load_gpu_database();
+            let cpu_score = scoring::score_cpu(
+                &cpu_ram_storage.cpu_model,
+                cpu_ram_storage.cpu_cores,
+                cpu_ram_storage.cpu_base_clock_mhz,
+                &cpu_db,
+            );
+            let gpu_score = scoring::score_gpu(&gpu.name, gpu.is_discrete, &gpu_db);
+
+            let scores = scoring::ComponentScores {
+                cpu: cpu_score,
+                gpu: gpu_score,
+                ram: ram_score,
+                storage: storage_score,
+            };
+            let composite = scoring::composite_score(&scores);
+            let readiness = scoring::target_readiness(composite);
+
+            let _ = tx.send(ScoringMsg::Done(ResultData {
+                cpu_model: cpu_ram_storage.cpu_model,
+                gpu_name: gpu.name,
+                ram_total_gb: cpu_ram_storage.ram_total_gb,
+                scores,
+                composite,
+                readiness,
+            }));
+        });
     }
 }
 
@@ -58,7 +135,36 @@ impl eframe::App for MachineScoreApp {
                     }
                 }
                 Screen::Scoring => {
-                    ui.label("Scoring screen - Task 9");
+                    if self.scoring_rx.is_none() {
+                        if ui.button("Run Scoring").clicked() {
+                            self.start_scoring();
+                        }
+                    } else {
+                        ui.label(&self.progress_label);
+                        ui.add(egui::widgets::Spinner::new());
+
+                        let mut finished = false;
+                        if let Some(rx) = &self.scoring_rx {
+                            for msg in rx.try_iter() {
+                                match msg {
+                                    ScoringMsg::DetectingCpu => self.progress_label = "Detecting CPU...".into(),
+                                    ScoringMsg::DetectingGpu => self.progress_label = "Detecting GPU...".into(),
+                                    ScoringMsg::DetectingRam => self.progress_label = "Detecting RAM...".into(),
+                                    ScoringMsg::DetectingStorage => self.progress_label = "Detecting storage...".into(),
+                                    ScoringMsg::Done(data) => {
+                                        self.result = Some(data);
+                                        finished = true;
+                                    }
+                                }
+                            }
+                        }
+                        if finished {
+                            self.scoring_rx = None;
+                            self.screen = Screen::Results;
+                        } else {
+                            ctx.request_repaint();
+                        }
+                    }
                 }
                 Screen::Results => {
                     ui.label("Results screen - Task 10");
