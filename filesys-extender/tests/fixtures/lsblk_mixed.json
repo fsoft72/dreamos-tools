@@ -1,0 +1,14 @@
+{
+   "blockdevices": [
+      {
+         "name": "sda", "path": "/dev/sda", "size": 256060514304,
+         "rm": false, "tran": null, "mountpoint": "/", "model": "Samsung SSD", "label": null,
+         "children": []
+      },
+      {
+         "name": "sdc", "path": "/dev/sdc", "size": 8053063680,
+         "rm": true, "tran": "usb", "mountpoint": null, "model": "Ultra Fit", "label": null,
+         "children": []
+      }
+   ]
+}

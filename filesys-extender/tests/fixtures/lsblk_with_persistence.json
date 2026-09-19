@@ -1,0 +1,17 @@
+{
+   "blockdevices": [
+      {
+         "name": "sda", "path": "/dev/sda", "size": 256060514304,
+         "rm": false, "tran": null, "mountpoint": null, "model": "Samsung SSD", "label": null,
+         "children": []
+      },
+      {
+         "name": "sdb", "path": "/dev/sdb", "size": 16008609792,
+         "rm": true, "tran": "usb", "mountpoint": null, "model": "Cruzer", "label": null,
+         "children": [
+            { "name": "sdb1", "path": "/dev/sdb1", "size": 1257242624, "rm": true, "tran": null, "mountpoint": null, "model": null, "label": null },
+            { "name": "sdb2", "path": "/dev/sdb2", "size": 100662295, "rm": true, "tran": null, "mountpoint": null, "model": null, "label": "persistence" }
+         ]
+      }
+   ]
+}
