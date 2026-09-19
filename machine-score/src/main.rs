@@ -21,10 +21,21 @@ fn tier_label(tier: machine_score::scoring::Tier) -> &'static str {
     }
 }
 
-fn draw_header(ui: &mut egui::Ui, logo: &egui::TextureHandle) {
+const DESC_TEXT_SIZE: f32 = 17.0;
+
+fn desc_label(ui: &mut egui::Ui, text: impl Into<String>) -> egui::Response {
+    ui.label(egui::RichText::new(text.into()).size(DESC_TEXT_SIZE))
+}
+
+fn draw_header(ui: &mut egui::Ui, logo: &egui::TextureHandle, large: bool) {
+    let (logo_size, title) = if large {
+        (96.0, egui::RichText::new("DreamOS Machine Score").size(40.0).strong())
+    } else {
+        (40.0, egui::RichText::new("DreamOS Machine Score").size(18.0).strong())
+    };
     ui.horizontal(|ui| {
-        ui.image((logo.id(), egui::vec2(48.0, 48.0)));
-        ui.heading("DreamOS Machine Score");
+        ui.image((logo.id(), egui::vec2(logo_size, logo_size)));
+        ui.label(title);
     });
     ui.separator();
 }
@@ -128,64 +139,92 @@ impl eframe::App for MachineScoreApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let logo = self.logo.get_or_insert_with(|| load_logo_texture(ctx)).clone();
 
+        // Bottom action bar, right-aligned, on every screen - added before
+        // CentralPanel so it reserves its space and the button(s) stay
+        // pinned to the window bottom regardless of content length above.
+        egui::TopBottomPanel::bottom("actions").show(ctx, |ui| {
+            ui.add_space(4.0);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                match self.screen {
+                    Screen::Welcome => {
+                        if ui.button("Start").clicked() {
+                            self.screen = Screen::Scoring;
+                        }
+                    }
+                    Screen::Scoring => {
+                        let running = self.scoring_rx.is_some();
+                        if ui.add_enabled(!running, egui::Button::new("Run Scoring")).clicked() {
+                            self.start_scoring();
+                        }
+                    }
+                    Screen::Results => {
+                        // right_to_left: first added ends up rightmost, so
+                        // add Close first to keep "Restart  Close" reading
+                        // order left-to-right.
+                        if ui.button("Close").clicked() {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        if ui.button("Restart").clicked() {
+                            self.result = None;
+                            self.screen = Screen::Welcome;
+                        }
+                    }
+                }
+            });
+            ui.add_space(4.0);
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            draw_header(ui, &logo);
+            draw_header(ui, &logo, self.screen == Screen::Welcome);
 
             match self.screen {
                 Screen::Welcome => {
-                    ui.label(
+                    desc_label(
+                        ui,
                         "DreamOS Machine Score evaluates whether this PC is ready for \
                          gaming and for game development with Godot or Unreal Engine 5. \
                          It detects your CPU, GPU, RAM, and storage, scores them, and \
                          shows a readiness breakdown for each target.",
                     );
-                    ui.add_space(12.0);
-                    if ui.button("Start").clicked() {
-                        self.screen = Screen::Scoring;
-                    }
                 }
                 Screen::Scoring => {
-                    if self.scoring_rx.is_none() {
-                        if ui.button("Run Scoring").clicked() {
-                            self.start_scoring();
-                        }
-                    } else {
-                        ui.label(&self.progress_label);
+                    if self.scoring_rx.is_some() {
+                        desc_label(ui, self.progress_label.clone());
                         ui.add(egui::widgets::Spinner::new());
+                    }
 
-                        let mut finished = false;
-                        if let Some(rx) = &self.scoring_rx {
-                            for msg in rx.try_iter() {
-                                match msg {
-                                    ScoringMsg::DetectingCpu => self.progress_label = "Detecting CPU...".into(),
-                                    ScoringMsg::DetectingGpu => self.progress_label = "Detecting GPU...".into(),
-                                    ScoringMsg::DetectingRam => self.progress_label = "Detecting RAM...".into(),
-                                    ScoringMsg::DetectingStorage => self.progress_label = "Detecting storage...".into(),
-                                    ScoringMsg::Done(data) => {
-                                        self.result = Some(data);
-                                        finished = true;
-                                    }
+                    let mut finished = false;
+                    if let Some(rx) = &self.scoring_rx {
+                        for msg in rx.try_iter() {
+                            match msg {
+                                ScoringMsg::DetectingCpu => self.progress_label = "Detecting CPU...".into(),
+                                ScoringMsg::DetectingGpu => self.progress_label = "Detecting GPU...".into(),
+                                ScoringMsg::DetectingRam => self.progress_label = "Detecting RAM...".into(),
+                                ScoringMsg::DetectingStorage => self.progress_label = "Detecting storage...".into(),
+                                ScoringMsg::Done(data) => {
+                                    self.result = Some(data);
+                                    finished = true;
                                 }
                             }
                         }
-                        if finished {
-                            self.scoring_rx = None;
-                            self.screen = Screen::Results;
-                        } else {
-                            ctx.request_repaint();
-                        }
+                    }
+                    if finished {
+                        self.scoring_rx = None;
+                        self.screen = Screen::Results;
+                    } else if self.scoring_rx.is_some() {
+                        ctx.request_repaint();
                     }
                 }
                 Screen::Results => {
                     if let Some(result) = self.result.clone() {
                         ui.add_space(8.0);
                         ui.label(egui::RichText::new(format!("{:.0}", result.composite)).size(64.0).strong());
-                        ui.label("Overall Score (0-100)");
+                        desc_label(ui, "Overall Score (0-100)");
                         ui.add_space(16.0);
 
-                        ui.label(format!("CPU: {}", result.cpu_model));
-                        ui.label(format!("GPU: {}", result.gpu_name));
-                        ui.label(format!("RAM: {:.0} GiB", result.ram_total_gb));
+                        desc_label(ui, format!("CPU: {}", result.cpu_model));
+                        desc_label(ui, format!("GPU: {}", result.gpu_name));
+                        desc_label(ui, format!("RAM: {:.0} GiB", result.ram_total_gb));
                         ui.add_space(8.0);
 
                         for (label, component) in [
@@ -195,27 +234,16 @@ impl eframe::App for MachineScoreApp {
                             ("Storage", result.scores.storage),
                         ] {
                             let note = if component.estimated { " (estimated - model not in database)" } else { "" };
-                            ui.label(format!("{label} score: {:.0}{note}", component.score));
+                            desc_label(ui, format!("{label} score: {:.0}{note}", component.score));
                         }
 
                         ui.add_space(16.0);
                         ui.heading("Readiness");
-                        ui.label(format!("Gaming: {}", tier_label(result.readiness.gaming)));
-                        ui.label(format!("Godot: {}", tier_label(result.readiness.godot)));
-                        ui.label(format!("Unreal Engine 5: {}", tier_label(result.readiness.unreal_engine_5)));
-
-                        ui.add_space(16.0);
-                        ui.horizontal(|ui| {
-                            if ui.button("Restart").clicked() {
-                                self.result = None;
-                                self.screen = Screen::Welcome;
-                            }
-                            if ui.button("Close").clicked() {
-                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                            }
-                        });
+                        desc_label(ui, format!("Gaming: {}", tier_label(result.readiness.gaming)));
+                        desc_label(ui, format!("Godot: {}", tier_label(result.readiness.godot)));
+                        desc_label(ui, format!("Unreal Engine 5: {}", tier_label(result.readiness.unreal_engine_5)));
                     } else {
-                        ui.label("No result yet.");
+                        desc_label(ui, "No result yet.");
                     }
                 }
             }
