@@ -123,6 +123,55 @@ pub fn inspect_free_space(device: &str) -> Result<Vec<PartedEntry>, DiskOpError>
     parse_parted_free(&out.stdout)
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Plan {
+    Create {
+        device: String,
+        partition_number: u32,
+        start_bytes: u64,
+        end_bytes: u64,
+    },
+    Grow {
+        device: String,
+        partition_number: u32,
+        new_end_bytes: u64,
+    },
+    NoAction {
+        reason: String,
+    },
+}
+
+pub fn compute_plan(device: &str, entries: &[PartedEntry], partitions: &[PartitionInfo]) -> Plan {
+    let persistence_number = entries.iter().filter_map(|e| e.number).find(|&n| {
+        let path = format!("{device}{n}");
+        partitions
+            .iter()
+            .any(|p| p.path == path && p.label.as_deref() == Some("persistence"))
+    });
+
+    let free_at_end = entries.last().filter(|e| e.fs_or_free == "free");
+
+    match (persistence_number, free_at_end) {
+        (Some(n), Some(free)) => Plan::Grow {
+            device: device.to_string(),
+            partition_number: n,
+            new_end_bytes: free.end_bytes,
+        },
+        (None, Some(free)) => Plan::Create {
+            device: device.to_string(),
+            partition_number: entries.iter().filter_map(|e| e.number).max().unwrap_or(0) + 1,
+            start_bytes: free.start_bytes,
+            end_bytes: free.end_bytes,
+        },
+        (Some(_), None) => Plan::NoAction {
+            reason: "the persistence partition already uses all available space".into(),
+        },
+        (None, None) => Plan::NoAction {
+            reason: "no free space available on this disk".into(),
+        },
+    }
+}
+
 #[cfg(test)]
 mod lsblk_tests {
     use super::*;
@@ -181,5 +230,83 @@ mod parted_tests {
         let out = include_str!("../tests/fixtures/parted_free_with_space.txt");
         let entries = parse_parted_free(out).unwrap();
         assert!(entries.iter().all(|e| e.start_bytes != 16008609792));
+    }
+}
+
+#[cfg(test)]
+mod plan_tests {
+    use super::*;
+
+    fn partition(path: &str, label: Option<&str>) -> PartitionInfo {
+        PartitionInfo {
+            path: path.to_string(),
+            size_bytes: 0,
+            mountpoint: None,
+            label: label.map(str::to_string),
+        }
+    }
+
+    fn entry(number: Option<u32>, start: u64, end: u64, fs_or_free: &str) -> PartedEntry {
+        PartedEntry {
+            number,
+            start_bytes: start,
+            end_bytes: end,
+            size_bytes: end - start,
+            fs_or_free: fs_or_free.to_string(),
+        }
+    }
+
+    #[test]
+    fn grows_existing_persistence_partition_into_trailing_free_space() {
+        let entries = vec![
+            entry(Some(1), 0, 1_000_000, "fat32"),
+            entry(Some(2), 1_000_000, 2_000_000, "ext4"),
+            entry(None, 2_000_000, 5_000_000, "free"),
+        ];
+        let partitions = vec![
+            partition("/dev/sdb1", None),
+            partition("/dev/sdb2", Some("persistence")),
+        ];
+        let plan = compute_plan("/dev/sdb", &entries, &partitions);
+        assert_eq!(
+            plan,
+            Plan::Grow { device: "/dev/sdb".into(), partition_number: 2, new_end_bytes: 5_000_000 }
+        );
+    }
+
+    #[test]
+    fn creates_persistence_partition_when_none_exists_and_free_space_present() {
+        let entries = vec![
+            entry(Some(1), 0, 1_000_000, "fat32"),
+            entry(None, 1_000_000, 5_000_000, "free"),
+        ];
+        let partitions = vec![partition("/dev/sdb1", None)];
+        let plan = compute_plan("/dev/sdb", &entries, &partitions);
+        assert_eq!(
+            plan,
+            Plan::Create { device: "/dev/sdb".into(), partition_number: 2, start_bytes: 1_000_000, end_bytes: 5_000_000 }
+        );
+    }
+
+    #[test]
+    fn no_action_when_persistence_exists_and_no_trailing_free_space() {
+        let entries = vec![
+            entry(Some(1), 0, 1_000_000, "fat32"),
+            entry(Some(2), 1_000_000, 5_000_000, "ext4"),
+        ];
+        let partitions = vec![
+            partition("/dev/sdb1", None),
+            partition("/dev/sdb2", Some("persistence")),
+        ];
+        let plan = compute_plan("/dev/sdb", &entries, &partitions);
+        assert!(matches!(plan, Plan::NoAction { .. }));
+    }
+
+    #[test]
+    fn no_action_when_no_persistence_and_no_free_space() {
+        let entries = vec![entry(Some(1), 0, 5_000_000, "fat32")];
+        let partitions = vec![partition("/dev/sdb1", None)];
+        let plan = compute_plan("/dev/sdb", &entries, &partitions);
+        assert!(matches!(plan, Plan::NoAction { .. }));
     }
 }
