@@ -2,7 +2,7 @@ pub mod detect;
 pub mod exec;
 pub mod recommend;
 pub mod secureboot;
-// pub mod state;      // added in Task 5
+pub mod state;
 
 use thiserror::Error;
 
