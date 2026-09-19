@@ -1,0 +1,7 @@
+Detected NVIDIA GPUs:
+01:00.0 VGA compatible controller [0300]: NVIDIA Corporation GA106 [GeForce RTX 3060] [10de:2503] (rev a1)
+Checking card:  NVIDIA Corporation GA106 [GeForce RTX 3060] [10de:2503] (rev a1)
+Your card is supported by the default drivers.
+It is recommended to install the
+    nvidia-driver
+package.

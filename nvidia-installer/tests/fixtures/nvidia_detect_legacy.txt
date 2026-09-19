@@ -1,0 +1,7 @@
+Detected NVIDIA GPUs:
+02:00.0 VGA compatible controller [0300]: NVIDIA Corporation GK110 [GeForce GTX 780] [10de:1004] (rev a1)
+Checking card:  NVIDIA Corporation GK110 [GeForce GTX 780] [10de:1004] (rev a1)
+Your card is only supported by the legacy drivers series.
+It is recommended to install the
+    nvidia-tesla-470-driver
+package.
