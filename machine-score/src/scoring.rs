@@ -20,6 +20,70 @@ pub struct ComponentScores {
     pub storage: ScoredComponent,
 }
 
+/// Composite weights. Placeholder defaults, tunable once real-world
+/// accuracy data exists.
+const CPU_WEIGHT: f64 = 0.35;
+const GPU_WEIGHT: f64 = 0.35;
+const RAM_WEIGHT: f64 = 0.15;
+const STORAGE_WEIGHT: f64 = 0.15;
+
+pub fn composite_score(scores: &ComponentScores) -> f64 {
+    scores.cpu.score * CPU_WEIGHT
+        + scores.gpu.score * GPU_WEIGHT
+        + scores.ram.score * RAM_WEIGHT
+        + scores.storage.score * STORAGE_WEIGHT
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tier {
+    Low,
+    Medium,
+    High,
+    Ultra,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TargetReadiness {
+    pub gaming: Tier,
+    pub godot: Tier,
+    pub unreal_engine_5: Tier,
+}
+
+fn tier_for(score: f64, low_max: f64, medium_max: f64, high_max: f64) -> Tier {
+    if score < low_max {
+        Tier::Low
+    } else if score < medium_max {
+        Tier::Medium
+    } else if score < high_max {
+        Tier::High
+    } else {
+        Tier::Ultra
+    }
+}
+
+// Placeholder tier thresholds, tunable once real-world accuracy data
+// exists. Godot's thresholds are lowest (lightest engine), UE5's
+// highest (heaviest), Gaming in between.
+const GAMING_LOW_MAX: f64 = 40.0;
+const GAMING_MEDIUM_MAX: f64 = 65.0;
+const GAMING_HIGH_MAX: f64 = 85.0;
+
+const GODOT_LOW_MAX: f64 = 25.0;
+const GODOT_MEDIUM_MAX: f64 = 50.0;
+const GODOT_HIGH_MAX: f64 = 75.0;
+
+const UE5_LOW_MAX: f64 = 50.0;
+const UE5_MEDIUM_MAX: f64 = 70.0;
+const UE5_HIGH_MAX: f64 = 90.0;
+
+pub fn target_readiness(composite: f64) -> TargetReadiness {
+    TargetReadiness {
+        gaming: tier_for(composite, GAMING_LOW_MAX, GAMING_MEDIUM_MAX, GAMING_HIGH_MAX),
+        godot: tier_for(composite, GODOT_LOW_MAX, GODOT_MEDIUM_MAX, GODOT_HIGH_MAX),
+        unreal_engine_5: tier_for(composite, UE5_LOW_MAX, UE5_MEDIUM_MAX, UE5_HIGH_MAX),
+    }
+}
+
 /// Score caps at 100 for 32 GiB or more; scales linearly below that.
 /// Placeholder constant, tunable once a real dataset informs a better curve.
 const RAM_SCORE_FULL_GB: f64 = 32.0;
@@ -169,5 +233,65 @@ mod lookup_tests {
         let integrated = score_gpu("Unknown iGPU", false, &db);
         assert!(discrete.estimated && integrated.estimated);
         assert!(discrete.score > integrated.score);
+    }
+}
+
+#[cfg(test)]
+mod composite_tests {
+    use super::*;
+
+    fn scores(cpu: f64, gpu: f64, ram: f64, storage: f64) -> ComponentScores {
+        ComponentScores {
+            cpu: ScoredComponent { score: cpu, estimated: false },
+            gpu: ScoredComponent { score: gpu, estimated: false },
+            ram: ScoredComponent { score: ram, estimated: false },
+            storage: ScoredComponent { score: storage, estimated: false },
+        }
+    }
+
+    #[test]
+    fn composite_of_all_100_is_100() {
+        assert_eq!(composite_score(&scores(100.0, 100.0, 100.0, 100.0)), 100.0);
+    }
+
+    #[test]
+    fn composite_of_all_0_is_0() {
+        assert_eq!(composite_score(&scores(0.0, 0.0, 0.0, 0.0)), 0.0);
+    }
+
+    #[test]
+    fn composite_weights_cpu_and_gpu_more_than_ram_and_storage() {
+        let cpu_gpu_heavy = composite_score(&scores(100.0, 100.0, 0.0, 0.0));
+        let ram_storage_heavy = composite_score(&scores(0.0, 0.0, 100.0, 100.0));
+        assert!(cpu_gpu_heavy > ram_storage_heavy);
+    }
+
+    #[test]
+    fn godot_reaches_higher_tiers_at_lower_scores_than_ue5() {
+        // Same composite score, Godot's readiness must be >= UE5's at every point.
+        for composite in [10.0, 30.0, 50.0, 70.0, 90.0] {
+            let r = target_readiness(composite);
+            assert!(tier_rank(r.godot) >= tier_rank(r.unreal_engine_5));
+        }
+    }
+
+    #[test]
+    fn tier_boundaries_are_exact() {
+        // Gaming: Low<40, Medium<65, High<85, else Ultra (spec placeholder values).
+        assert_eq!(target_readiness(39.9).gaming, Tier::Low);
+        assert_eq!(target_readiness(40.0).gaming, Tier::Medium);
+        assert_eq!(target_readiness(64.9).gaming, Tier::Medium);
+        assert_eq!(target_readiness(65.0).gaming, Tier::High);
+        assert_eq!(target_readiness(84.9).gaming, Tier::High);
+        assert_eq!(target_readiness(85.0).gaming, Tier::Ultra);
+    }
+
+    fn tier_rank(t: Tier) -> u8 {
+        match t {
+            Tier::Low => 0,
+            Tier::Medium => 1,
+            Tier::High => 2,
+            Tier::Ultra => 3,
+        }
     }
 }
