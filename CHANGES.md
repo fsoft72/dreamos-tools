@@ -111,3 +111,8 @@
 
 - `apps/internet/firefox`: `install.sh` now removes the Firefox snap
   (after the deb is installed; snap keeps a data snapshot).
+
+- `apps/office/libreoffice`: LibreOffice from The Document Foundation:
+  latest stable deb bundle (SHA256 verified) plus the language pack of
+  the system language when it exists, installed with `apt-get`.
+  Uninstall removes every official versioned release.
