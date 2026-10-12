@@ -17,7 +17,10 @@ Developer-facing build/test notes: [`dreamos-install/README.md`](../dreamos-inst
    middle column with their install status (`Checking...`,
    `Installed`, `Not installed`, `Check failed`).
 3. Click an app to read its description on the right.
-4. Click **Install** (shown when the app is not installed) or
+4. Optionally click **View script** to read, in a modal window with
+   syntax highlighting (Esc closes it), the script the next button
+   would run.
+   Then click **Install** (shown when the app is not installed) or
    **Uninstall** (shown when it is installed and provides an uninstall
    script) and confirm. The script runs in the terminal that replaces
    the description; navigation is locked until it ends.

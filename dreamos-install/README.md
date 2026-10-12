@@ -25,6 +25,8 @@ Catalog folder: first argument, else `$DREAMOS_INSTALL_DIR`, else
 ## Runtime dependencies
 
 - GTK 4 and the GTK 4 build of VTE (`libvte-2.91-gtk4-0`, >= 0.78).
+- GtkSourceView 5 (`libgtksourceview-5-0`) for the script viewer. Build
+  needs `libgtksourceview-5-dev`.
 - `bash` - every catalog script is run with it.
 - `pkexec` (polkit) - privilege elevation.
 

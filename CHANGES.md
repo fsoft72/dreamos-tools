@@ -73,3 +73,10 @@
   zip, latest stable GitHub release, SHA512 verified) installed in the
   user's `~/.local` (`opt/godot`, `bin/godot`, menu entry, icon), new
   category "Development".
+
+## 2026-10-12 - View script
+
+- dreamos-install: new **View script** button next to Install /
+  Uninstall. Opens a modal read-only window (GtkSourceView 5, shell
+  highlighting, line numbers, light/dark scheme) with the script that
+  will run. New dependency `sourceview5` (build: `libgtksourceview-5-dev`).

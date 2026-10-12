@@ -10,6 +10,7 @@ vte4 = { version = "0.9", features = ["v0_78"] }
 pulldown-cmark = { version = "0.13", default-features = false }
 thiserror = "2"
 libc = "0.2"
+sourceview5 = "0.10"
 
 [profile.release]
 opt-level = 2

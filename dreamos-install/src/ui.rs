@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::Duration;
+use sourceview5::prelude::*;
 use vte4::prelude::*;
 
 const LOGO_BYTES: &[u8] = include_bytes!("../assets/ball.png");
@@ -21,6 +22,10 @@ const APP_ICON_SIZE: i32 = 40;
 const PAGE_PLACEHOLDER: &str = "placeholder";
 const PAGE_DETAIL: &str = "detail";
 const PAGE_TERMINAL: &str = "terminal";
+const SCRIPT_WINDOW_WIDTH: i32 = 860;
+const SCRIPT_WINDOW_HEIGHT: i32 = 620;
+const SCHEME_LIGHT: &str = "Adwaita";
+const SCHEME_DARK: &str = "Adwaita-dark";
 const CHECK_POLL: Duration = Duration::from_millis(50);
 const SCROLLBACK_LINES: i64 = 10_000;
 
@@ -69,6 +74,7 @@ struct Ui {
     status_label: Label,
     install_btn: Button,
     uninstall_btn: Button,
+    view_btn: Button,
     back_btn: Button,
 }
 
@@ -164,6 +170,60 @@ fn app_row(app: &App) -> (ListBoxRow, Label) {
     let row = ListBoxRow::new();
     row.set_child(Some(&row_box));
     (row, status)
+}
+
+/// Shows `source` in a modal, read-only window with shell syntax
+/// highlighting, line numbers and a theme matching the desktop style.
+fn show_script_window(parent: &ApplicationWindow, title: &str, source: &str) {
+    let buffer = sourceview5::Buffer::new(None);
+    buffer.set_text(source);
+    buffer.set_language(sourceview5::LanguageManager::default().language("sh").as_ref());
+    buffer.set_highlight_syntax(true);
+    let scheme_id = if gtk4::Settings::default().is_some_and(|s| {
+        s.is_gtk_application_prefer_dark_theme()
+            || s.gtk_theme_name().is_some_and(|name| name.to_lowercase().contains("dark"))
+    }) {
+        SCHEME_DARK
+    } else {
+        SCHEME_LIGHT
+    };
+    buffer.set_style_scheme(sourceview5::StyleSchemeManager::default().scheme(scheme_id).as_ref());
+
+    let view = sourceview5::View::with_buffer(&buffer);
+    view.set_editable(false);
+    view.set_cursor_visible(false);
+    view.set_monospace(true);
+    view.set_show_line_numbers(true);
+    view.set_highlight_current_line(false);
+    view.set_top_margin(8);
+    view.set_bottom_margin(8);
+
+    let scroller = ScrolledWindow::new();
+    scroller.set_child(Some(&view));
+    scroller.set_hexpand(true);
+    scroller.set_vexpand(true);
+
+    let window = gtk4::Window::builder()
+        .title(title)
+        .modal(true)
+        .transient_for(parent)
+        .default_width(SCRIPT_WINDOW_WIDTH)
+        .default_height(SCRIPT_WINDOW_HEIGHT)
+        .child(&scroller)
+        .build();
+
+    // Escape closes the viewer.
+    let keys = gtk4::EventControllerKey::new();
+    let closing = window.clone();
+    keys.connect_key_pressed(move |_, key, _, _| {
+        if key == gtk4::gdk::Key::Escape {
+            closing.close();
+            return Propagation::Stop;
+        }
+        Propagation::Proceed
+    });
+    window.add_controller(keys);
+    window.present();
 }
 
 impl Ui {
@@ -292,6 +352,7 @@ impl Ui {
 
         self.install_btn.set_visible(false);
         self.uninstall_btn.set_visible(false);
+        self.view_btn.set_visible(false);
         if running {
             self.status_label.set_text("Running...");
             return;
@@ -322,6 +383,38 @@ impl Ui {
         }
         self.install_btn.set_visible(matches!(status, Status::NotInstalled | Status::CheckFailed(_)));
         self.uninstall_btn.set_visible(status == Status::Installed && app.has_uninstall);
+        self.view_btn.set_visible(self.install_btn.is_visible() || self.uninstall_btn.is_visible());
+    }
+
+    /// Script the visible action button would run: install when offered,
+    /// otherwise uninstall.
+    fn offered_action(&self) -> Action {
+        if self.install_btn.is_visible() {
+            Action::Install
+        } else {
+            Action::Uninstall
+        }
+    }
+
+    /// Opens a modal read-only window with the highlighted source of the
+    /// script that the offered action is about to run.
+    fn view_script(&self) {
+        let Some(app) = self.current_app() else {
+            return;
+        };
+        let script = self.offered_action().script();
+        let path = app.dir.join(script);
+        match std::fs::read_to_string(&path) {
+            Ok(source) => show_script_window(&self.window, &format!("{} - {script}", app.name), &source),
+            Err(e) => {
+                let dialog = AlertDialog::builder()
+                    .modal(true)
+                    .message(format!("Cannot read {script}"))
+                    .detail(format!("{}: {e}", path.display()))
+                    .build();
+                dialog.show(Some(&self.window));
+            }
+        }
     }
 
     /// Asks for confirmation, then runs the action's script for the
@@ -490,6 +583,8 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
     status_label.set_hexpand(true);
     let back_btn = Button::with_label("Back");
     back_btn.set_visible(false);
+    let view_btn = Button::with_label("View script");
+    view_btn.set_visible(false);
     let uninstall_btn = Button::with_label(Action::Uninstall.verb());
     uninstall_btn.add_css_class("destructive-action");
     let install_btn = Button::with_label(Action::Install.verb());
@@ -503,6 +598,7 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
     actions.set_height_request(34);
     actions.append(&status_label);
     actions.append(&back_btn);
+    actions.append(&view_btn);
     actions.append(&uninstall_btn);
     actions.append(&install_btn);
     outer.append(&actions);
@@ -525,6 +621,7 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
         status_label,
         install_btn,
         uninstall_btn,
+        view_btn,
         back_btn,
     });
     connect_signals(&ui);
@@ -570,6 +667,13 @@ fn connect_signals(ui: &Rc<Ui>) {
     ui.uninstall_btn.connect_clicked(move |_| {
         if let Some(ui) = weak.upgrade() {
             ui.confirm_and_run(Action::Uninstall);
+        }
+    });
+
+    let weak = Rc::downgrade(ui);
+    ui.view_btn.connect_clicked(move |_| {
+        if let Some(ui) = weak.upgrade() {
+            ui.view_script();
         }
     });
 
