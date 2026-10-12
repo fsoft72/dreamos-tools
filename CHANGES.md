@@ -16,6 +16,6 @@
 
 - New `apps/` catalog folder for dreamos-install.
 - `apps/graphics/photocraft`: PhotoCraft image editor. `install.sh`
-  always fetches the latest GitHub release AppImage (x86_64), verifies
-  its SHA256, installs it in `/opt/photocraft` with a `photocraft`
-  launcher and a desktop entry. `uninstall.sh` removes it.
+  always fetches the latest GitHub release deb (amd64), verifies its
+  SHA256 and installs it with `apt-get install`. `uninstall.sh` removes
+  the package.

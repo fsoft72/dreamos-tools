@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Remove PhotoCraft files installed by install.sh.
+# Remove the PhotoCraft deb package.
 set -euo pipefail
 
-rm -rf /opt/photocraft
-rm -f /usr/local/bin/photocraft /usr/share/applications/photocraft.desktop
+apt-get remove -y photocraft
 echo "PhotoCraft removed."
