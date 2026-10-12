@@ -55,3 +55,7 @@
 
 - `apps/office/deckcraft`: DeckCraft presentation app, same deb based
   install flow as PhotoCraft (latest GitHub release).
+
+- `apps/design/cadcraft`: CadCraft CAD and drafting app, same deb
+  based install flow as PhotoCraft (latest GitHub release), new
+  category "Design".
