@@ -84,3 +84,14 @@
 - `apps/graphics/blender`: Blender, latest stable Linux x64 tarball
   from download.blender.org (SHA256 verified), installed in the user's
   `~/.local` like Godot.
+
+## 2026-10-12 - more apps
+
+- apt based (distribution repositories): `graphics/krita`,
+  `graphics/inkscape`, `development/tiled`, `video/obs-studio`,
+  `video/handbrake`.
+- Latest deb from the vendor: `graphics/blockbench` (GitHub release),
+  `development/dbeaver` (dbeaver.io, package `dbeaver-ce`). No
+  checksums are published, HTTPS only.
+- `graphics/libresprite`: no deb exists, latest AppImage from GitHub
+  installed in the user's `~/.local` (installs `libfuse2` when missing).
