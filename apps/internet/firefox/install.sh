@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Add the official Mozilla apt repository and install the Firefox deb from it.
-# Ubuntu's own "firefox" package only installs the snap, so the repository is
-# pinned with a higher priority.
+# Add the official Mozilla apt repository, install the Firefox deb from it and
+# remove the Firefox snap. Ubuntu's own "firefox" package only installs the
+# snap, so the repository is pinned with a higher priority.
 set -euo pipefail
 
 readonly KEY_URL="https://packages.mozilla.org/apt/repo-signing-key.gpg"
@@ -29,4 +29,11 @@ PREFERENCES_FILE
 
 apt-get update
 apt-get install -y firefox
+
+# Only after the deb is in place: drop the snap build. snap takes an automatic
+# snapshot of its user data first (kept for a while, see `snap saved`).
+if command -v snap >/dev/null && snap list firefox >/dev/null 2>&1; then
+	echo "Removing the Firefox snap ..."
+	snap remove firefox
+fi
 echo "Firefox installed."

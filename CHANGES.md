@@ -108,3 +108,6 @@
   (official Opera apt repo) and `firefox` (official Mozilla apt repo,
   pinned over Ubuntu's snap stub; its `check.sh` requires the real
   `/usr/lib/firefox/firefox`).
+
+- `apps/internet/firefox`: `install.sh` now removes the Firefox snap
+  (after the deb is installed; snap keeps a data snapshot).
