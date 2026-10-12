@@ -32,3 +32,7 @@
 - `apps/video/filmcraft`: FilmCraft nonlinear video editor, same deb
   based install flow as PhotoCraft (latest GitHub release), new
   category "Video".
+
+- `apps/graphics/lightcraft`: LightCraft photo library and raw
+  developer, same deb based install flow as PhotoCraft (latest GitHub
+  release).
