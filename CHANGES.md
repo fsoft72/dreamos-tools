@@ -48,3 +48,7 @@
 - `apps/graphics/designcraft` (page layout editor) and
   `apps/office/wordcraft` (word processor, reads/writes .docx): same
   deb based install flow as PhotoCraft (latest GitHub release).
+
+- `apps/audio/soundcraft`: SoundCraft digital audio workstation, same
+  deb based install flow as PhotoCraft (latest GitHub release), new
+  category "Audio".
