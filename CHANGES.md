@@ -36,3 +36,7 @@
 - `apps/graphics/lightcraft`: LightCraft photo library and raw
   developer, same deb based install flow as PhotoCraft (latest GitHub
   release).
+
+- `apps/office/pdfcraft`: PdfCraft PDF reader and editor, same deb
+  based install flow as PhotoCraft (latest GitHub release), new
+  category "Office".
