@@ -125,3 +125,9 @@
   `DBUS_SESSION_BUS_ADDRESS` (`elevate::pkexec_argv`, unit tested).
   Fixes "Failed to open display" after the password prompt, because
   pkexec drops the environment.
+
+- dreamos-install: before the pkexec re-exec the user's GTK look
+  (theme, dark preference, icon theme, font, cursor) is read and
+  forwarded as `DREAMOS_GTK_*` variables; the elevated process applies
+  it to its GtkSettings. Fixes dark / light mode being ignored when
+  running as root.
