@@ -127,9 +127,9 @@ Single window, header with the `ball.png` logo and the title
   - Both ask for confirmation first.
 - Running a script swaps the detail pane for a VTE terminal running
   `bash install.sh` (or `uninstall.sh`). While it runs, category list,
-  app list and actions are disabled. When the child exits the terminal
-  shows a result line ("Completed" / "Failed (exit N)") and a **Back**
-  button; the app is re-checked.
+  app list and actions are disabled. When the child exits, the terminal
+  and the action bar show the outcome ("Completed successfully" /
+  "Failed (exit code N)") plus a **Back** button; the app is re-checked.
 - Closing the window while a script runs asks for confirmation.
 
 ## Dependencies
