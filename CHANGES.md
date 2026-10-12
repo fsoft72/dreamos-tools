@@ -52,3 +52,6 @@
 - `apps/audio/soundcraft`: SoundCraft digital audio workstation, same
   deb based install flow as PhotoCraft (latest GitHub release), new
   category "Audio".
+
+- `apps/office/deckcraft`: DeckCraft presentation app, same deb based
+  install flow as PhotoCraft (latest GitHub release).
