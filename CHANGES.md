@@ -19,3 +19,5 @@
   always fetches the latest GitHub release deb (amd64), verifies its
   SHA256 and installs it with `apt-get install`. `uninstall.sh` removes
   the package.
+- `apps/graphics/vectorcraft`: VectorCraft vector art tool, same
+  deb based install flow as PhotoCraft (latest GitHub release).
