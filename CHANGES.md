@@ -44,3 +44,7 @@
 - `apps/video/effectcraft`: EffectCraft motion graphics and
   compositing tool, same deb based install flow as PhotoCraft (latest
   GitHub release).
+
+- `apps/graphics/designcraft` (page layout editor) and
+  `apps/office/wordcraft` (word processor, reads/writes .docx): same
+  deb based install flow as PhotoCraft (latest GitHub release).
