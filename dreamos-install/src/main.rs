@@ -2,6 +2,7 @@ mod render;
 mod ui;
 
 use dreamos_install::catalog::{resolve_root, ROOT_ENV};
+use dreamos_install::elevate::pkexec_argv;
 use gtk4::prelude::*;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -10,7 +11,8 @@ use std::process::Command;
 const APP_ID: &str = "org.dreamos.Install";
 
 /// Re-executes the binary via pkexec unless already root, forwarding the
-/// catalog root as an argument (pkexec drops the environment).
+/// catalog root as an argument and the display session variables (pkexec
+/// drops the environment).
 fn ensure_root(root: &Path) {
     // Escape hatch for UI-only iteration (see scripts/run-dreamos-install.sh):
     // skips the pkexec re-exec so the browser can be exercised without a
@@ -24,7 +26,10 @@ fn ensure_root(root: &Path) {
         return;
     }
     let self_path = std::env::current_exe().expect("cannot resolve own executable path");
-    let err = Command::new("pkexec").arg(self_path).arg(root).exec();
+    // pkexec drops the environment, including the variables that point to the
+    // display: forward them or GTK fails with "Failed to open display".
+    let argv = pkexec_argv(&self_path, root, |name| std::env::var_os(name));
+    let err = Command::new("pkexec").args(argv).exec();
     // exec() only returns on failure.
     eprintln!("failed to re-exec via pkexec: {err}");
     std::process::exit(1);

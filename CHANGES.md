@@ -116,3 +116,12 @@
   latest stable deb bundle (SHA256 verified) plus the language pack of
   the system language when it exists, installed with `apt-get`.
   Uninstall removes every official versioned release.
+
+## 2026-10-12 - pkexec display fix
+
+- dreamos-install: the pkexec re-exec now goes through `env` and
+  forwards `DISPLAY`, `XAUTHORITY`, `WAYLAND_DISPLAY`,
+  `XDG_RUNTIME_DIR`, `XDG_SESSION_TYPE`, `GDK_BACKEND` and
+  `DBUS_SESSION_BUS_ADDRESS` (`elevate::pkexec_argv`, unit tested).
+  Fixes "Failed to open display" after the password prompt, because
+  pkexec drops the environment.

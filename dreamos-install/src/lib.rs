@@ -1,4 +1,5 @@
 pub mod catalog;
+pub mod elevate;
 pub mod markdown;
 pub mod status;
 
