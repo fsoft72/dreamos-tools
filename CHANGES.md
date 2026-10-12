@@ -102,3 +102,9 @@
   of all categories by name, case insensitive substring. Matching
   logic is `catalog::search`, with a unit test. Esc, an empty box or
   picking a category leaves the search mode.
+
+- New category "Internet": `apps/internet/chrome` (latest stable deb
+  from Google), `brave-origin` (official Brave apt repo), `opera`
+  (official Opera apt repo) and `firefox` (official Mozilla apt repo,
+  pinned over Ubuntu's snap stub; its `check.sh` requires the real
+  `/usr/lib/firefox/firefox`).
