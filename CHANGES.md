@@ -40,3 +40,7 @@
 - `apps/office/pdfcraft`: PdfCraft PDF reader and editor, same deb
   based install flow as PhotoCraft (latest GitHub release), new
   category "Office".
+
+- `apps/video/effectcraft`: EffectCraft motion graphics and
+  compositing tool, same deb based install flow as PhotoCraft (latest
+  GitHub release).
