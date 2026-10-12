@@ -28,3 +28,7 @@
   the left of the app in the list (`App.icon`, `ICON_FILE`).
 - Icons added for PhotoCraft and VectorCraft (from the ArtCraft site)
   and for the `demo-paint` example. Docs updated.
+
+- `apps/video/filmcraft`: FilmCraft nonlinear video editor, same deb
+  based install flow as PhotoCraft (latest GitHub release), new
+  category "Video".
