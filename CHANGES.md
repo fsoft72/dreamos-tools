@@ -59,3 +59,6 @@
 - `apps/design/cadcraft`: CadCraft CAD and drafting app, same deb
   based install flow as PhotoCraft (latest GitHub release), new
   category "Design".
+
+- `apps/office/gridcraft`: GridCraft spreadsheet app (.xlsx), same deb
+  based install flow as PhotoCraft (latest GitHub release).
