@@ -42,6 +42,7 @@ apps/
       install.sh         (required)
       check.sh           (required)
       uninstall.sh       (optional)
+      icon.png           (optional, shown next to the app in the list)
       screenshot.png     (any file the README references)
 ```
 
@@ -49,6 +50,11 @@ apps/
   with no valid app are hidden. Folders starting with `.` are ignored.
 - An app folder missing `README.md`, `install.sh` or `check.sh` is
   skipped (a warning is printed on stderr).
+
+### icon.png
+
+Optional square PNG (128x128 is plenty), shown at 40 px at the left of
+the app in the list. Apps without it show no icon.
 
 ### README.md
 

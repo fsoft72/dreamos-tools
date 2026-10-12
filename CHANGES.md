@@ -21,3 +21,10 @@
   the package.
 - `apps/graphics/vectorcraft`: VectorCraft vector art tool, same
   deb based install flow as PhotoCraft (latest GitHub release).
+
+## 2026-10-12 - app icons
+
+- dreamos-install: optional `icon.png` in an app folder is shown at
+  the left of the app in the list (`App.icon`, `ICON_FILE`).
+- Icons added for PhotoCraft and VectorCraft (from the ArtCraft site)
+  and for the `demo-paint` example. Docs updated.

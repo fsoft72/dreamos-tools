@@ -17,6 +17,7 @@ use std::time::Duration;
 use vte4::prelude::*;
 
 const LOGO_BYTES: &[u8] = include_bytes!("../assets/ball.png");
+const APP_ICON_SIZE: i32 = 40;
 const PAGE_PLACEHOLDER: &str = "placeholder";
 const PAGE_DETAIL: &str = "detail";
 const PAGE_TERMINAL: &str = "terminal";
@@ -124,7 +125,7 @@ fn describe_exit(wait_status: i32) -> (String, bool) {
     (format!("Ended with status {wait_status}"), false)
 }
 
-/// Builds one row of the app list: name, summary and a status label.
+/// Builds one row of the app list: icon, name, summary and a status label.
 /// Returns the row and its status label (updated as checks complete).
 fn app_row(app: &App) -> (ListBoxRow, Label) {
     let row_box = GtkBox::new(Orientation::Horizontal, 8);
@@ -132,6 +133,13 @@ fn app_row(app: &App) -> (ListBoxRow, Label) {
     row_box.set_margin_bottom(6);
     row_box.set_margin_start(8);
     row_box.set_margin_end(8);
+
+    if let Some(icon_path) = &app.icon {
+        let icon = Image::from_file(icon_path);
+        icon.set_pixel_size(APP_ICON_SIZE);
+        icon.set_valign(Align::Center);
+        row_box.append(&icon);
+    }
 
     let texts = GtkBox::new(Orientation::Vertical, 2);
     texts.set_hexpand(true);

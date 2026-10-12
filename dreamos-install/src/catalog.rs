@@ -9,14 +9,17 @@ pub const README_FILE: &str = "README.md";
 pub const INSTALL_SCRIPT: &str = "install.sh";
 pub const CHECK_SCRIPT: &str = "check.sh";
 pub const UNINSTALL_SCRIPT: &str = "uninstall.sh";
+pub const ICON_FILE: &str = "icon.png";
 
-/// One installable app: a folder with README.md, install.sh, check.sh.
+/// One installable app: a folder with README.md, install.sh, check.sh and
+/// an optional icon.png shown in the app list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct App {
     pub dir: PathBuf,
     pub name: String,
     pub summary: String,
     pub screenshot: Option<PathBuf>,
+    pub icon: Option<PathBuf>,
     pub has_uninstall: bool,
 }
 
@@ -87,6 +90,7 @@ pub fn load_app(dir: &Path) -> Result<App, String> {
         name: doc.title.unwrap_or_else(|| _folder_name(dir)),
         summary: doc.summary.unwrap_or_default(),
         screenshot: doc.first_local_image.map(|src| dir.join(src)),
+        icon: Some(dir.join(ICON_FILE)).filter(|path| path.is_file()),
         has_uninstall: dir.join(UNINSTALL_SCRIPT).is_file(),
     })
 }
@@ -186,8 +190,22 @@ mod tests {
         assert_eq!(graphics[0].summary, "Raster editor.");
         assert_eq!(graphics[0].screenshot, Some(root.join("graphics/gimp/shot.png")));
         assert!(graphics[0].has_uninstall);
+        assert_eq!(graphics[0].icon, None);
         assert_eq!(graphics[1].name, "Krita");
         assert!(!graphics[1].has_uninstall);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn detects_optional_icon() {
+        let root = temp_root();
+        make_app(&root.join("graphics/with-icon"), "# With\n", false);
+        fs::write(root.join("graphics/with-icon").join(ICON_FILE), "png").unwrap();
+        make_app(&root.join("graphics/no-icon"), "# No\n", false);
+
+        let apps = scan(&root).unwrap().categories.remove(0).apps;
+        assert_eq!(apps[0].icon, None);
+        assert_eq!(apps[1].icon, Some(root.join("graphics/with-icon").join(ICON_FILE)));
         fs::remove_dir_all(&root).unwrap();
     }
 
