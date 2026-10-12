@@ -16,6 +16,11 @@ Developer-facing build/test notes: [`dreamos-install/README.md`](../dreamos-inst
 2. Pick a category on the left; the apps of that category appear in the
    middle column with their install status (`Checking...`,
    `Installed`, `Not installed`, `Check failed`).
+   To find an app by name, type part of it in the search box at the top
+   right (or press Ctrl+F): the middle column then lists the matching
+   apps of every category, ignoring case, with their category next to
+   the name. Esc, clearing the box or picking a category goes back to
+   the category view.
 3. Click an app to read its description on the right.
 4. Optionally click **View script** to read, in a modal window with
    syntax highlighting (Esc closes it), the script the next button

@@ -1,12 +1,12 @@
 use crate::render::render_document;
-use dreamos_install::catalog::{self, App, Category, ScanResult, INSTALL_SCRIPT, README_FILE, UNINSTALL_SCRIPT};
+use dreamos_install::catalog::{self, App, AppPos, Category, ScanResult, INSTALL_SCRIPT, README_FILE, UNINSTALL_SCRIPT};
 use dreamos_install::markdown::{self, escape_markup};
 use dreamos_install::status::{invoking_user, run_check, Status, APP_DIR_ENV, CHECK_TIMEOUT, USER_ENV};
 use gtk4::glib::{self, ControlFlow, Propagation};
 use gtk4::prelude::*;
 use gtk4::{
     gio, AlertDialog, Align, Application, ApplicationWindow, Box as GtkBox, Button, Image, Label, ListBox,
-    ListBoxRow, Orientation, PolicyType, ScrolledWindow, SelectionMode, Separator, Stack,
+    ListBoxRow, Orientation, PolicyType, ScrolledWindow, SearchEntry, SelectionMode, Separator, Stack,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -18,6 +18,7 @@ use sourceview5::prelude::*;
 use vte4::prelude::*;
 
 const LOGO_BYTES: &[u8] = include_bytes!("../assets/ball.png");
+const SEARCH_WIDTH_CHARS: i32 = 28;
 const APP_ICON_SIZE: i32 = 40;
 const PAGE_PLACEHOLDER: &str = "placeholder";
 const PAGE_DETAIL: &str = "detail";
@@ -61,7 +62,12 @@ struct Ui {
     categories: Vec<Category>,
     statuses: RefCell<HashMap<PathBuf, Status>>,
     selected_cat: Cell<Option<usize>>,
+    /// Category to go back to when a search is cleared.
+    last_cat: Cell<usize>,
+    /// Apps shown in the app list, in row order.
+    visible: RefCell<Vec<AppPos>>,
     selected_app: Cell<Option<usize>>,
+    search: SearchEntry,
     running: Cell<bool>,
     app_status_labels: RefCell<Vec<Label>>,
     cat_list: ListBox,
@@ -131,9 +137,10 @@ fn describe_exit(wait_status: i32) -> (String, bool) {
     (format!("Ended with status {wait_status}"), false)
 }
 
-/// Builds one row of the app list: icon, name, summary and a status label.
+/// Builds one row of the app list: icon, name (plus the category when
+/// searching), summary and a status label.
 /// Returns the row and its status label (updated as checks complete).
-fn app_row(app: &App) -> (ListBoxRow, Label) {
+fn app_row(app: &App, category: Option<&str>) -> (ListBoxRow, Label) {
     let row_box = GtkBox::new(Orientation::Horizontal, 8);
     row_box.set_margin_top(6);
     row_box.set_margin_bottom(6);
@@ -150,7 +157,8 @@ fn app_row(app: &App) -> (ListBoxRow, Label) {
     let texts = GtkBox::new(Orientation::Vertical, 2);
     texts.set_hexpand(true);
     let name = Label::new(None);
-    name.set_markup(&format!("<b>{}</b>", escape_markup(&app.name)));
+    let tag = category.map(|c| format!("  <span weight='normal' alpha='60%'>{}</span>", escape_markup(c)));
+    name.set_markup(&format!("<b>{}</b>{}", escape_markup(&app.name), tag.unwrap_or_default()));
     name.set_xalign(0.0);
     texts.append(&name);
     if !app.summary.is_empty() {
@@ -227,14 +235,10 @@ fn show_script_window(parent: &ApplicationWindow, title: &str, source: &str) {
 }
 
 impl Ui {
-    /// Currently selected category, if any.
-    fn current_category(&self) -> Option<&Category> {
-        self.categories.get(self.selected_cat.get()?)
-    }
-
-    /// Currently selected app, if any.
+    /// Currently selected app, if any (also while a search is shown).
     fn current_app(&self) -> Option<&App> {
-        self.current_category()?.apps.get(self.selected_app.get()?)
+        let (cat_idx, app_idx) = *self.visible.borrow().get(self.selected_app.get()?)?;
+        self.categories.get(cat_idx)?.apps.get(app_idx)
     }
 
     /// Cached status of an app (Checking when no check has finished yet).
@@ -242,44 +246,74 @@ impl Ui {
         self.statuses.borrow().get(&app.dir).cloned().unwrap_or(Status::Checking)
     }
 
-    /// Fills the app list for category `idx` (no-op when it is already
-    /// selected) and starts the checks of the
-    /// apps that have no cached status yet.
+    /// Shows the apps of category `idx` (no-op when it is already
+    /// selected).
     fn select_category(self: &Rc<Self>, idx: usize) {
         // GtkListBox re-emits row-selected for the already selected row when
         // focus lands on it (e.g. after the Back button hides itself).
         if self.selected_cat.get() == Some(idx) {
             return;
         }
+        let Some(category) = self.categories.get(idx) else {
+            return;
+        };
         self.selected_cat.set(Some(idx));
+        self.last_cat.set(idx);
+        let entries = (0..category.apps.len()).map(|app_idx| (idx, app_idx)).collect();
+        self.show_apps(entries, false);
+    }
+
+    /// Filters the apps of every category by name. A blank query goes back
+    /// to the last selected category.
+    fn apply_search(self: &Rc<Self>, query: &str) {
+        if query.trim().is_empty() {
+            // A category is already shown: nothing to restore.
+            if self.selected_cat.get().is_some() {
+                return;
+            }
+            if let Some(row) = self.cat_list.row_at_index(self.last_cat.get() as i32) {
+                self.cat_list.select_row(Some(&row));
+            }
+            return;
+        }
+        self.selected_cat.set(None);
+        self.cat_list.unselect_all();
+        self.show_apps(catalog::search(&self.categories, query), true);
+    }
+
+    /// Fills the app list with `entries`, resets the selection and starts
+    /// the checks of the apps that have no cached status yet.
+    fn show_apps(self: &Rc<Self>, entries: Vec<AppPos>, show_category: bool) {
         self.selected_app.set(None);
         self.app_status_labels.borrow_mut().clear();
         while let Some(child) = self.app_list.first_child() {
             self.app_list.remove(&child);
         }
-        let Some(category) = self.categories.get(idx) else {
-            return;
-        };
         let mut labels = Vec::new();
-        for app in &category.apps {
-            let (row, label) = app_row(app);
+        let mut unchecked = Vec::new();
+        for &(cat_idx, app_idx) in &entries {
+            let category = &self.categories[cat_idx];
+            let app = &category.apps[app_idx];
+            let (row, label) = app_row(app, show_category.then_some(category.name.as_str()));
             self.app_list.append(&row);
             labels.push(label);
+            if !self.statuses.borrow().contains_key(&app.dir) {
+                unchecked.push(app.dir.clone());
+            }
         }
+        *self.visible.borrow_mut() = entries;
         *self.app_status_labels.borrow_mut() = labels;
-
-        let unchecked: Vec<PathBuf> = category
-            .apps
-            .iter()
-            .filter(|app| !self.statuses.borrow().contains_key(&app.dir))
-            .map(|app| app.dir.clone())
-            .collect();
         self.start_checks(unchecked);
-        self.show_placeholder("Select an app to see its description.");
+        let empty = show_category && self.visible.borrow().is_empty();
+        self.show_placeholder(if empty {
+            "No app matches the search."
+        } else {
+            "Select an app to see its description."
+        });
         self.refresh();
     }
 
-    /// Shows app `idx` of the current category in the detail pane.
+    /// Shows app `idx` of the app list in the detail pane.
     fn select_app(self: &Rc<Self>, idx: usize) {
         self.selected_app.set(Some(idx));
         let Some(app) = self.current_app() else {
@@ -344,10 +378,10 @@ impl Ui {
         self.cat_list.set_sensitive(!running);
         self.app_list.set_sensitive(!running);
 
-        if let Some(category) = self.current_category() {
-            for (app, label) in category.apps.iter().zip(self.app_status_labels.borrow().iter()) {
-                label.set_text(self.status_of(app).label());
-            }
+        self.search.set_sensitive(!running);
+
+        for (&(cat_idx, app_idx), label) in self.visible.borrow().iter().zip(self.app_status_labels.borrow().iter()) {
+            label.set_text(self.status_of(&self.categories[cat_idx].apps[app_idx]).label());
         }
 
         self.install_btn.set_visible(false);
@@ -516,7 +550,15 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
         .build();
 
     let outer = GtkBox::new(Orientation::Vertical, 0);
-    outer.append(&build_header());
+    let search = SearchEntry::new();
+    search.set_placeholder_text(Some("Search apps (Ctrl+F)"));
+    search.set_width_chars(SEARCH_WIDTH_CHARS);
+    search.set_hexpand(true);
+    search.set_halign(Align::End);
+    search.set_valign(Align::Center);
+    let header = build_header();
+    header.append(&search);
+    outer.append(&header);
     outer.append(&Separator::new(Orientation::Horizontal));
     window.set_child(Some(&outer));
 
@@ -608,7 +650,10 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
         categories,
         statuses: RefCell::new(HashMap::new()),
         selected_cat: Cell::new(None),
+        last_cat: Cell::new(0),
+        visible: RefCell::new(Vec::new()),
         selected_app: Cell::new(None),
+        search,
         running: Cell::new(false),
         app_status_labels: RefCell::new(Vec::new()),
         cat_list,
@@ -640,7 +685,38 @@ fn connect_signals(ui: &Rc<Ui>) {
             return;
         };
         ui.select_category(row.index() as usize);
+        // Picking a category leaves the search mode.
+        ui.search.set_text("");
     });
+
+    let weak = Rc::downgrade(ui);
+    ui.search.connect_search_changed(move |entry| {
+        if let Some(ui) = weak.upgrade() {
+            ui.apply_search(&entry.text());
+        }
+    });
+
+    let weak = Rc::downgrade(ui);
+    ui.search.connect_stop_search(move |entry| {
+        if weak.upgrade().is_some() {
+            entry.set_text("");
+        }
+    });
+
+    // Ctrl+F focuses the search box.
+    let keys = gtk4::EventControllerKey::new();
+    let weak = Rc::downgrade(ui);
+    keys.connect_key_pressed(move |_, key, _, modifiers| {
+        let is_find = key == gtk4::gdk::Key::f && modifiers.contains(gtk4::gdk::ModifierType::CONTROL_MASK);
+        match weak.upgrade() {
+            Some(ui) if is_find && !ui.running.get() => {
+                ui.search.grab_focus();
+                Propagation::Stop
+            }
+            _ => Propagation::Proceed,
+        }
+    });
+    ui.window.add_controller(keys);
 
     let weak = Rc::downgrade(ui);
     ui.app_list.connect_row_selected(move |_, row| {

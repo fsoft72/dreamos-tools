@@ -127,6 +127,24 @@ pub fn scan(root: &Path) -> Result<ScanResult, CatalogError> {
     Ok(result)
 }
 
+/// Position of an app in a catalog: (category index, app index).
+pub type AppPos = (usize, usize);
+
+/// Apps whose name contains `query`, ignoring case and surrounding
+/// whitespace, in catalog order. A blank query matches every app.
+pub fn search(categories: &[Category], query: &str) -> Vec<AppPos> {
+    let needle = query.trim().to_lowercase();
+    let mut found = Vec::new();
+    for (cat_idx, category) in categories.iter().enumerate() {
+        for (app_idx, app) in category.apps.iter().enumerate() {
+            if app.name.to_lowercase().contains(&needle) {
+                found.push((cat_idx, app_idx));
+            }
+        }
+    }
+    found
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -232,5 +250,21 @@ mod tests {
     fn missing_root_is_an_error() {
         let err = scan(Path::new("/nonexistent/dreamos-install-root")).unwrap_err();
         assert!(err.to_string().contains("/nonexistent/dreamos-install-root"));
+    }
+
+    #[test]
+    fn search_matches_part_of_name_ignoring_case() {
+        let root = temp_root();
+        make_app(&root.join("graphics/krita"), "# Krita\n", false);
+        make_app(&root.join("graphics/inkscape"), "# Inkscape\n", false);
+        make_app(&root.join("video/obs"), "# OBS Studio\n", false);
+        let categories = scan(&root).unwrap().categories;
+
+        assert_eq!(search(&categories, "SCAPE"), [(0, 0)]);
+        assert_eq!(search(&categories, " studio "), [(1, 0)]);
+        assert_eq!(search(&categories, "k"), [(0, 0), (0, 1)]);
+        assert!(search(&categories, "nothing").is_empty());
+        assert_eq!(search(&categories, "  ").len(), 3);
+        fs::remove_dir_all(&root).unwrap();
     }
 }

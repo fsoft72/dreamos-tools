@@ -95,3 +95,10 @@
   checksums are published, HTTPS only.
 - `graphics/libresprite`: no deb exists, latest AppImage from GitHub
   installed in the user's `~/.local` (installs `libfuse2` when missing).
+
+## 2026-10-12 - search
+
+- dreamos-install: search box in the header (Ctrl+F) that filters apps
+  of all categories by name, case insensitive substring. Matching
+  logic is `catalog::search`, with a unit test. Esc, an empty box or
+  picking a category leaves the search mode.
