@@ -1,7 +1,7 @@
 use crate::render::render_document;
 use dreamos_install::catalog::{self, App, Category, ScanResult, INSTALL_SCRIPT, README_FILE, UNINSTALL_SCRIPT};
 use dreamos_install::markdown::{self, escape_markup};
-use dreamos_install::status::{run_check, Status, APP_DIR_ENV, CHECK_TIMEOUT};
+use dreamos_install::status::{invoking_user, run_check, Status, APP_DIR_ENV, CHECK_TIMEOUT, USER_ENV};
 use gtk4::glib::{self, ControlFlow, Propagation};
 use gtk4::prelude::*;
 use gtk4::{
@@ -369,12 +369,13 @@ impl Ui {
 
         let dir = app.dir.to_string_lossy().into_owned();
         let env = format!("{APP_DIR_ENV}={dir}");
+        let user_env = format!("{USER_ENV}={}", invoking_user().unwrap_or_default());
         let ui = Rc::clone(self);
         self.terminal.spawn_async(
             vte4::PtyFlags::DEFAULT,
             Some(&dir),
             &["bash", action.script()],
-            &[&env],
+            &[&env, &user_env],
             glib::SpawnFlags::SEARCH_PATH,
             || {},
             -1,

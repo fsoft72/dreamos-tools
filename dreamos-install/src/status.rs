@@ -6,6 +6,9 @@ use std::time::{Duration, Instant};
 
 pub const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 pub const APP_DIR_ENV: &str = "DREAMOS_APP_DIR";
+/// Login name of the user who started dreamos-install, for scripts that
+/// must install per-user files (the scripts themselves run as root).
+pub const USER_ENV: &str = "DREAMOS_USER";
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// Install state of an app as reported by its check script.
@@ -29,6 +32,32 @@ impl Status {
     }
 }
 
+/// Picks the invoking user's uid: pkexec's, then sudo's, then `fallback`.
+fn _pick_uid(pkexec: Option<&str>, sudo: Option<&str>, fallback: u32) -> u32 {
+    [pkexec, sudo].into_iter().flatten().find_map(|v| v.parse().ok()).unwrap_or(fallback)
+}
+
+/// Login name of the user who started the tool, even after the pkexec
+/// re-exec (pkexec exports `PKEXEC_UID`). None when it cannot be resolved.
+pub fn invoking_user() -> Option<String> {
+    // SAFETY: geteuid() is a pure syscall with no preconditions.
+    let fallback = unsafe { libc::geteuid() };
+    let uid = _pick_uid(
+        std::env::var("PKEXEC_UID").ok().as_deref(),
+        std::env::var("SUDO_UID").ok().as_deref(),
+        fallback,
+    );
+    // SAFETY: getpwuid() returns NULL or a pointer to a static passwd
+    // entry; pw_name is copied out immediately.
+    unsafe {
+        let entry = libc::getpwuid(uid);
+        if entry.is_null() {
+            return None;
+        }
+        Some(std::ffi::CStr::from_ptr((*entry).pw_name).to_string_lossy().into_owned())
+    }
+}
+
 /// Runs `bash check.sh` inside `app_dir` and maps its exit code to a
 /// status (0 = installed). The script runs in its own process group so a
 /// timeout kills it together with any children it started.
@@ -37,6 +66,7 @@ pub fn run_check(app_dir: &Path, timeout: Duration) -> Status {
         .arg(CHECK_SCRIPT)
         .current_dir(app_dir)
         .env(APP_DIR_ENV, app_dir)
+        .env(USER_ENV, invoking_user().unwrap_or_default())
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -78,6 +108,14 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join(CHECK_SCRIPT), body).unwrap();
         dir
+    }
+
+    #[test]
+    fn pick_uid_priority() {
+        assert_eq!(_pick_uid(Some("1000"), Some("1001"), 0), 1000);
+        assert_eq!(_pick_uid(None, Some("1001"), 0), 1001);
+        assert_eq!(_pick_uid(Some("bad"), None, 7), 7);
+        assert_eq!(_pick_uid(None, None, 0), 0);
     }
 
     #[test]

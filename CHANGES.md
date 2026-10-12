@@ -62,3 +62,14 @@
 
 - `apps/office/gridcraft`: GridCraft spreadsheet app (.xlsx), same deb
   based install flow as PhotoCraft (latest GitHub release).
+
+## 2026-10-12 - per-user installs, Godot
+
+- dreamos-install: scripts (check, install, uninstall) now get
+  `DREAMOS_USER`, the login name of the invoking user (from
+  `PKEXEC_UID` / `SUDO_UID`), so they can install into the user's
+  home while running as root. Docs updated.
+- `apps/development/godot`: Godot Engine editor (single file in a
+  zip, latest stable GitHub release, SHA512 verified) installed in the
+  user's `~/.local` (`opt/godot`, `bin/godot`, menu entry, icon), new
+  category "Development".

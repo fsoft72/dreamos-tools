@@ -75,6 +75,11 @@ rules. Tables and raw HTML are not rendered.
 - All scripts are run as `bash <script>` (no executable bit needed),
   as root, with the app folder as working directory and
   `DREAMOS_APP_DIR` set to its absolute path.
+- `DREAMOS_USER` holds the login name of the user who started the tool
+  (resolved from `PKEXEC_UID`, then `SUDO_UID`, then the current
+  user). Use it for per-user installs, e.g. under `~/.local`: look up
+  the home with `getent passwd "$DREAMOS_USER"` and drop privileges
+  with `runuser -u "$DREAMOS_USER" -- ...`. See `apps/development/godot`.
 - `check.sh` must exit `0` when the app is installed and non-zero
   otherwise. It should be quick and silent: it runs for every app of a
   category when the category is opened, and is stopped after 10
