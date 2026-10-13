@@ -1,5 +1,16 @@
 # Changes
 
+## 2026-10-13 - nvidia-installer becomes a dreamos-install app
+
+- New app `apps/drivers/nvidia-driver`: `install.sh` detects the GPU
+  (`lspci`), picks the package with `nvidia-detect` (override with
+  `NVIDIA_PACKAGE`), sets up the DKMS signing key and `mokutil --import`
+  when Secure Boot is on, then runs `apt-get install`. `check.sh` and
+  `uninstall.sh` complete it. Parsing functions are covered by
+  `tests/test.sh` (fixtures moved from the old crate).
+- Removed the `nvidia-installer/` GTK wizard, its run script, user doc,
+  design spec and plan.
+
 ## 2026-10-12 - dreamos-install
 
 - New tool `dreamos-install/`: GTK4 browser for a folder based app
