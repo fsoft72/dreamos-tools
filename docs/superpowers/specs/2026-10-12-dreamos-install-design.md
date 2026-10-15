@@ -76,9 +76,11 @@ The resolved path is made absolute and forwarded as an argument to the
 
 ## Privileges
 
-Same pattern as the sibling tools: at startup, if not root, the binary
-re-executes itself via `pkexec`. `DREAMOS_INSTALL_SKIP_ROOT=1` skips
-this for UI iteration (`scripts/run-dreamos-install.sh`).
+The binary runs as a normal user. Only `install.sh` / `uninstall.sh` are
+elevated: when the user confirms the action they are run through
+`pkexec` (polkit asks for the password at that moment). `check.sh` runs
+unprivileged. `DREAMOS_INSTALL_SKIP_ROOT=1` skips `pkexec` for UI
+iteration (`scripts/run-dreamos-install.sh`).
 
 ## Architecture (crate `dreamos-install/`)
 

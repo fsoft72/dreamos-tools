@@ -15,7 +15,8 @@ Output: `target/release/dreamos-install`.
 
 ## Run
 
-Must run as root (it self-elevates via `pkexec` if not already root):
+Runs as a normal user and asks for the administrator password (via
+`pkexec`) only when Install or Uninstall is confirmed:
 
     ./target/release/dreamos-install [catalog-dir]
 

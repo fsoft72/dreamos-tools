@@ -2,7 +2,7 @@
 #
 # Build and run dreamos-install on the example catalog for UI iteration,
 # without a real pkexec elevation prompt each time
-# (DREAMOS_INSTALL_SKIP_ROOT=1 makes main() skip re-exec via pkexec). The
+# (DREAMOS_INSTALL_SKIP_ROOT=1 makes the scripts run without pkexec). The
 # example apps only touch /tmp/dreamos-install-demo, so they install fine
 # unprivileged; real catalog scripts that need root will fail here.
 #

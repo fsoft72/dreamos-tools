@@ -11,8 +11,9 @@ Developer-facing build/test notes: [`dreamos-install/README.md`](../dreamos-inst
 
 ## Using it
 
-1. Start `dreamos-install` (it asks for the administrator password via
-   polkit, because install scripts run as root).
+1. Start `dreamos-install` as a normal user. It asks for the
+   administrator password via polkit only when you confirm Install or
+   Uninstall, because those scripts run as root.
 2. Pick a category on the left; the apps of that category appear in the
    middle column with their install status (`Checking...`,
    `Installed`, `Not installed`, `Check failed`).
@@ -80,12 +81,13 @@ rules. Tables and raw HTML are not rendered.
 
 ### Scripts
 
-- All scripts are run as `bash <script>` (no executable bit needed),
-  as root, with the app folder as working directory and
+- `install.sh` and `uninstall.sh` are run as `bash <script>` (no
+  executable bit needed) as root through `pkexec`; `check.sh` runs as
+  the invoking user, with the app folder as working directory and
   `DREAMOS_APP_DIR` set to its absolute path.
 - `DREAMOS_USER` holds the login name of the user who started the tool
-  (resolved from `PKEXEC_UID`, then `SUDO_UID`, then the current
-  user). Use it for per-user installs, e.g. under `~/.local`: look up
+  (the tool itself runs as that user and passes the name to the
+  elevated script). Use it for per-user installs, e.g. under `~/.local`: look up
   the home with `getent passwd "$DREAMOS_USER"` and drop privileges
   with `runuser -u "$DREAMOS_USER" -- ...`. See `apps/development/godot`.
 - `check.sh` must exit `0` when the app is installed and non-zero

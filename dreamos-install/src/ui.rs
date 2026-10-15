@@ -1,5 +1,6 @@
 use crate::render::render_document;
 use dreamos_install::catalog::{self, App, AppPos, Category, ScanResult, INSTALL_SCRIPT, README_FILE, UNINSTALL_SCRIPT};
+use dreamos_install::elevate::{script_argv, SKIP_ROOT_ENV};
 use dreamos_install::markdown::{self, escape_markup};
 use dreamos_install::status::{invoking_user, run_check, Status, APP_DIR_ENV, CHECK_TIMEOUT, USER_ENV};
 use gtk4::glib::{self, ControlFlow, Propagation};
@@ -119,6 +120,12 @@ fn side_column(child: &impl IsA<gtk4::Widget>, width: i32) -> ScrolledWindow {
     scrolled.set_size_request(width, -1);
     scrolled.set_child(Some(child));
     scrolled
+}
+
+/// True when the process already runs as root, so no elevation is needed.
+fn _is_root() -> bool {
+    // SAFETY: geteuid() is a pure syscall with no preconditions.
+    unsafe { libc::geteuid() == 0 }
 }
 
 /// Decodes a waitpid() status from VTE's child-exited signal into a
@@ -461,7 +468,7 @@ impl Ui {
             .modal(true)
             .message(format!("{} {}?", action.verb(), app.name))
             .detail(format!(
-                "This runs {} from {} as root.",
+                "This runs {} from {} as root. The administrator password is asked next.",
                 action.script(),
                 app.dir.display()
             ))
@@ -495,14 +502,20 @@ impl Ui {
         self.refresh();
 
         let dir = app.dir.to_string_lossy().into_owned();
-        let env = format!("{APP_DIR_ENV}={dir}");
-        let user_env = format!("{USER_ENV}={}", invoking_user().unwrap_or_default());
+        let user = invoking_user().unwrap_or_default();
+        let elevate = std::env::var_os(SKIP_ROOT_ENV).is_none() && !_is_root();
+        let argv = script_argv(&app.dir, action.script(), &[(APP_DIR_ENV, &dir), (USER_ENV, &user)], elevate);
+        let argv: Vec<String> = argv.iter().map(|a| a.to_string_lossy().into_owned()).collect();
+        let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
+        // An explicit copy of our environment: an empty envv could be read as "no variables".
+        let environ: Vec<String> = std::env::vars().map(|(k, v)| format!("{k}={v}")).collect();
+        let environ: Vec<&str> = environ.iter().map(String::as_str).collect();
         let ui = Rc::clone(self);
         self.terminal.spawn_async(
             vte4::PtyFlags::DEFAULT,
             Some(&dir),
-            &["bash", action.script()],
-            &[&env, &user_env],
+            &argv,
+            &environ,
             glib::SpawnFlags::SEARCH_PATH,
             || {},
             -1,

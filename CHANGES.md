@@ -1,5 +1,13 @@
 # Changes
 
+## 2026-10-15 - dreamos-install asks for root only on Install
+
+- The app now starts as a normal user. The administrator password is
+  asked by `pkexec` only when an install or uninstall script runs
+  (`elevate::script_argv`, unit tested), not at startup. `check.sh`
+  runs unprivileged. Removed the startup re-exec and the GTK look
+  forwarding, no longer needed.
+
 ## 2026-10-13 - nvidia-installer becomes a dreamos-install app
 
 - New app `apps/drivers/nvidia-driver`: `install.sh` detects the GPU

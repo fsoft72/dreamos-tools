@@ -1,45 +1,27 @@
 use std::ffi::OsString;
 use std::path::Path;
 
-/// Variables that carry the user's GTK look to the elevated process, which
-/// would otherwise use root's (default, light) settings.
-pub const THEME_ENV: &str = "DREAMOS_GTK_THEME";
-pub const DARK_ENV: &str = "DREAMOS_GTK_DARK";
-pub const ICONS_ENV: &str = "DREAMOS_GTK_ICONS";
-pub const FONT_ENV: &str = "DREAMOS_GTK_FONT";
-pub const CURSOR_ENV: &str = "DREAMOS_GTK_CURSOR";
+/// Escape hatch for UI-only iteration (see scripts/run-dreamos-install.sh):
+/// scripts run unprivileged, without any polkit prompt.
+pub const SKIP_ROOT_ENV: &str = "DREAMOS_INSTALL_SKIP_ROOT";
 
-/// Variables pkexec drops but the elevated GTK program needs: the user's
-/// display (X11 or Wayland) and look.
-pub const SESSION_ENV_VARS: &[&str] = &[
-    "DISPLAY",
-    "XAUTHORITY",
-    "WAYLAND_DISPLAY",
-    "XDG_RUNTIME_DIR",
-    "XDG_SESSION_TYPE",
-    "GDK_BACKEND",
-    "DBUS_SESSION_BUS_ADDRESS",
-    THEME_ENV,
-    DARK_ENV,
-    ICONS_ENV,
-    FONT_ENV,
-    CURSOR_ENV,
-];
-
-/// Arguments for `pkexec`: runs `self_path <root>` through `env` so the
-/// variables found in `lookup` survive the privilege switch.
-/// Variables that `lookup` does not have are skipped.
-pub fn pkexec_argv(self_path: &Path, root: &Path, lookup: impl Fn(&str) -> Option<OsString>) -> Vec<OsString> {
-    let mut argv: Vec<OsString> = vec!["env".into()];
-    for name in SESSION_ENV_VARS {
-        if let Some(value) = lookup(name) {
-            let mut assignment = OsString::from(format!("{name}="));
-            assignment.push(value);
-            argv.push(assignment);
-        }
+/// Command line that runs `bash <script>` inside `app_dir` with the given
+/// environment. When `elevate` is true the command goes through `pkexec`
+/// (which resets the environment and the working directory, hence `env -C`),
+/// so the password is asked only when a script actually runs.
+pub fn script_argv(app_dir: &Path, script: &str, vars: &[(&str, &str)], elevate: bool) -> Vec<OsString> {
+    let mut argv: Vec<OsString> = Vec::new();
+    if elevate {
+        argv.push("pkexec".into());
     }
-    argv.push(self_path.into());
-    argv.push(root.into());
+    argv.push("env".into());
+    argv.push("-C".into());
+    argv.push(app_dir.into());
+    for (name, value) in vars {
+        argv.push(format!("{name}={value}").into());
+    }
+    argv.push("bash".into());
+    argv.push(script.into());
     argv
 }
 
@@ -47,26 +29,22 @@ pub fn pkexec_argv(self_path: &Path, root: &Path, lookup: impl Fn(&str) -> Optio
 mod tests {
     use super::*;
 
-    #[test]
-    fn forwards_only_the_present_variables() {
-        let lookup = |name: &str| match name {
-            "DISPLAY" => Some(OsString::from(":0")),
-            "XAUTHORITY" => Some(OsString::from("/tmp/xauth_x")),
-            "DREAMOS_GTK_DARK" => Some(OsString::from("1")),
-            _ => None,
-        };
-        let argv = pkexec_argv(Path::new("/bin/app"), Path::new("/cat"), lookup);
-        let expected: Vec<OsString> = ["env", "DISPLAY=:0", "XAUTHORITY=/tmp/xauth_x", "DREAMOS_GTK_DARK=1", "/bin/app", "/cat"]
-            .iter()
-            .map(OsString::from)
-            .collect();
-        assert_eq!(argv, expected);
+    fn strings(argv: Vec<OsString>) -> Vec<String> {
+        argv.into_iter().map(|a| a.to_string_lossy().into_owned()).collect()
     }
 
     #[test]
-    fn without_session_variables_only_env_and_the_program() {
-        let argv = pkexec_argv(Path::new("/bin/app"), Path::new("/cat"), |_| None);
-        assert_eq!(argv.len(), 3);
-        assert_eq!(argv[0], "env");
+    fn elevated_goes_through_pkexec() {
+        let argv = script_argv(Path::new("/cat/app"), "install.sh", &[("DREAMOS_USER", "fabio")], true);
+        assert_eq!(
+            strings(argv),
+            ["pkexec", "env", "-C", "/cat/app", "DREAMOS_USER=fabio", "bash", "install.sh"]
+        );
+    }
+
+    #[test]
+    fn unelevated_skips_pkexec() {
+        let argv = script_argv(Path::new("/cat/app"), "install.sh", &[], false);
+        assert_eq!(strings(argv), ["env", "-C", "/cat/app", "bash", "install.sh"]);
     }
 }
