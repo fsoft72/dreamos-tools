@@ -74,6 +74,9 @@
 - `apps/office/gridcraft`: GridCraft spreadsheet app (.xlsx), same deb
   based install flow as PhotoCraft (latest GitHub release).
 
+- `apps/design/figcraft`: FigCraft interface design app, same deb based
+  install flow as PhotoCraft (latest GitHub release).
+
 ## 2026-10-12 - per-user installs, Godot
 
 - dreamos-install: scripts (check, install, uninstall) now get
