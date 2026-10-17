@@ -1,5 +1,12 @@
 # Changes
 
+## 2026-10-17 - Steam added to the dreamos-install catalog
+
+- New app `apps/games/steam` (new `games` category): enables the `i386`
+  architecture, then `multiverse` + `steam` on Ubuntu or
+  `contrib`/`non-free` + `steam-installer` on Debian. Steam logo icon.
+  `check.sh` and `uninstall.sh` handle both package names.
+
 ## 2026-10-15 - dreamos-install asks for root only on Install
 
 - The app now starts as a normal user. The administrator password is
