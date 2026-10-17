@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-10-17 - RetroArch added to the dreamos-install catalog
+
+- New app `apps/games/retroarch`: `apt-get install retroarch`, with the
+  official `ppa:libretro/stable` added first on Ubuntu (no Snap, no
+  Flatpak). Icon and screenshot from the Flathub listing.
+
 ## 2026-10-17 - Screenshots for Steam and Heroic
 
 - Added `screenshot.png` (from the Flathub listings) to `apps/games/steam`
