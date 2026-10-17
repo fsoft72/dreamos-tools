@@ -1,5 +1,12 @@
 # Changes
 
+## 2026-10-17 - Heroic Games Launcher added to the dreamos-install catalog
+
+- New app `apps/games/heroic`: downloads the latest `linux-amd64.deb`
+  from the GitHub releases and installs it with `apt-get install`
+  (the release publishes no checksum file, so none is verified).
+  Icon from the project repository.
+
 ## 2026-10-17 - Steam added to the dreamos-install catalog
 
 - New app `apps/games/steam` (new `games` category): enables the `i386`
