@@ -1,5 +1,10 @@
 # Changes
 
+## 2026-10-17 - Screenshots for Steam and Heroic
+
+- Added `screenshot.png` (from the Flathub listings) to `apps/games/steam`
+  and `apps/games/heroic` and referenced it in their READMEs.
+
 ## 2026-10-17 - Heroic Games Launcher added to the dreamos-install catalog
 
 - New app `apps/games/heroic`: downloads the latest `linux-amd64.deb`

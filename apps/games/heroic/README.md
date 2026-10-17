@@ -2,6 +2,8 @@
 
 Open source launcher for the Epic Games Store, GOG and Amazon Games, with Wine and Proton support to run Windows games on Linux.
 
+![Heroic Games Launcher library](screenshot.png)
+
 ## Notes
 
 - Always installs the **latest** release published on GitHub (deb package, amd64).

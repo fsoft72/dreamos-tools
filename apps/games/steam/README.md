@@ -2,6 +2,8 @@
 
 Valve's game store and launcher: buy, download and play thousands of games, with Proton for Windows titles.
 
+![Steam library](screenshot.png)
+
 ## Notes
 
 - Installed with `apt`, so dependencies are resolved automatically.
