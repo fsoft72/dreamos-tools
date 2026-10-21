@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-10-21 - Copy and Download in the script viewer
+
+- dreamos-install: the **View script** window has a bottom bar with
+  **Copy** (script text to the clipboard) and **Download** (save dialog
+  proposing the script file name).
+
 ## 2026-10-21 - manifest.json for every dreamos-install app
 
 - dreamos-install: each app folder now needs a `manifest.json` (name,

@@ -192,7 +192,9 @@ fn app_row(app: &App, category: Option<&str>) -> (ListBoxRow, Label) {
 
 /// Shows `source` in a modal, read-only window with shell syntax
 /// highlighting, line numbers and a theme matching the desktop style.
-fn show_script_window(parent: &ApplicationWindow, title: &str, source: &str) {
+/// The Copy button puts the text on the clipboard; Download saves it to a
+/// file chosen by the user, proposing `file_name`.
+fn show_script_window(parent: &ApplicationWindow, title: &str, file_name: &str, source: &str) {
     let buffer = sourceview5::Buffer::new(None);
     buffer.set_text(source);
     buffer.set_language(sourceview5::LanguageManager::default().language("sh").as_ref());
@@ -221,14 +223,65 @@ fn show_script_window(parent: &ApplicationWindow, title: &str, source: &str) {
     scroller.set_hexpand(true);
     scroller.set_vexpand(true);
 
+    let copy_btn = Button::with_label("Copy");
+    let download_btn = Button::with_label("Download");
+    let bar = GtkBox::new(Orientation::Horizontal, 8);
+    bar.set_margin_top(10);
+    bar.set_margin_bottom(10);
+    bar.set_margin_start(16);
+    bar.set_margin_end(16);
+    bar.set_halign(Align::End);
+    bar.append(&copy_btn);
+    bar.append(&download_btn);
+
+    let content = GtkBox::new(Orientation::Vertical, 0);
+    content.append(&scroller);
+    content.append(&Separator::new(Orientation::Horizontal));
+    content.append(&bar);
+
     let window = gtk4::Window::builder()
         .title(title)
         .modal(true)
         .transient_for(parent)
         .default_width(SCRIPT_WINDOW_WIDTH)
         .default_height(SCRIPT_WINDOW_HEIGHT)
-        .child(&scroller)
+        .child(&content)
         .build();
+
+    let text = source.to_string();
+    let copy_source = text.clone();
+    copy_btn.connect_clicked(move |btn| {
+        btn.display().clipboard().set_text(&copy_source);
+    });
+
+    let save_window = window.clone();
+    let initial_name = file_name.to_string();
+    download_btn.connect_clicked(move |_| {
+        let dialog = gtk4::FileDialog::builder().title("Save script").initial_name(&initial_name).build();
+        let text = text.clone();
+        let error_parent = save_window.clone();
+        dialog.save(Some(&save_window), None::<&gio::Cancellable>, move |result| {
+            // A dismissed dialog is reported as an error too: nothing to save then.
+            let Ok(file) = result else {
+                return;
+            };
+            let saved = file.replace_contents(
+                text.as_bytes(),
+                None,
+                false,
+                gio::FileCreateFlags::REPLACE_DESTINATION,
+                None::<&gio::Cancellable>,
+            );
+            if let Err(e) = saved {
+                AlertDialog::builder()
+                    .modal(true)
+                    .message("Cannot save the script")
+                    .detail(e.to_string())
+                    .build()
+                    .show(Some(&error_parent));
+            }
+        });
+    });
 
     // Escape closes the viewer.
     let keys = gtk4::EventControllerKey::new();
@@ -457,7 +510,10 @@ impl Ui {
         };
         let path = app.dir.join(script);
         match std::fs::read_to_string(&path) {
-            Ok(source) => show_script_window(&self.window, &format!("{} - {script}", app.name), &source),
+            Ok(source) => {
+                let file_name = Path::new(script).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                show_script_window(&self.window, &format!("{} - {script}", app.name), &file_name, &source)
+            },
             Err(e) => {
                 let dialog = AlertDialog::builder()
                     .modal(true)
