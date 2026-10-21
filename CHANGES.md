@@ -1,5 +1,12 @@
 # Changes
 
+## 2026-10-21 - Xodus Nexus added to the dreamos-install catalog
+
+- New app `apps/games/xodus-nexus`: installs the latest `x86_64` AppImage
+  from GitHub Releases (SHA512 verified) into `/opt/xodus-nexus`, with
+  `/usr/local/bin/xodus-nexus` and a menu entry, plus the runtime libraries
+  via `apt`. Icon from the project repository, screenshot from its docs.
+
 ## 2026-10-21 - Copy and Download in the script viewer
 
 - dreamos-install: the **View script** window has a bottom bar with
