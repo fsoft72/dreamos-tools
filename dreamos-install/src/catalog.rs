@@ -25,6 +25,8 @@ struct Manifest {
     check: Option<String>,
     install: Option<String>,
     uninstall: Option<String>,
+    /// True when running the install script again updates the app.
+    updatable: Option<bool>,
     screenshot: Option<String>,
     github: Option<String>,
     homepage: Option<String>,
@@ -32,7 +34,8 @@ struct Manifest {
 
 /// One installable app: a folder with a `manifest.json` that names the
 /// README, the check and install scripts and the optional icon,
-/// screenshot, uninstall script and project links. Every path is stored
+/// screenshot, uninstall script and project links. `updatable` apps get an
+/// Update button that runs the install script again. Every path is stored
 /// relative to `dir`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct App {
@@ -43,6 +46,7 @@ pub struct App {
     pub check_script: String,
     pub install_script: String,
     pub uninstall_script: Option<String>,
+    pub updatable: bool,
     pub screenshot: Option<PathBuf>,
     pub icon: Option<PathBuf>,
     pub github: Option<String>,
@@ -172,6 +176,7 @@ pub fn load_app(dir: &Path) -> Result<App, String> {
         check_script,
         install_script,
         uninstall_script: manifest.uninstall.filter(|script| dir.join(script).is_file()),
+        updatable: manifest.updatable.unwrap_or(false),
         screenshot: manifest.screenshot.map(|shot| dir.join(shot)),
         icon: Some(icon).filter(|path| path.is_file()),
         github: manifest.github,
@@ -310,6 +315,23 @@ mod tests {
         assert_eq!(graphics[1].name, "Krita");
         assert_eq!(graphics[1].uninstall_script, None);
         assert_eq!(graphics[1].screenshot, None);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn updatable_is_false_unless_the_manifest_says_true() {
+        let root = temp_root();
+        make_app(&root.join("a/plain"), "Plain", "# P\n", false);
+        assert!(!load_app(&root.join("a/plain")).unwrap().updatable);
+
+        make_app_with(&root.join("a/yes"), r#"{"name": "Yes", "updatable": true}"#, "# Y\n", false);
+        assert!(load_app(&root.join("a/yes")).unwrap().updatable);
+
+        make_app_with(&root.join("a/no"), r#"{"name": "No", "updatable": false}"#, "# N\n", false);
+        assert!(!load_app(&root.join("a/no")).unwrap().updatable);
+
+        make_app_with(&root.join("a/bad"), r#"{"name": "Bad", "updatable": "yes"}"#, "# B\n", false);
+        assert!(load_app(&root.join("a/bad")).unwrap_err().contains("invalid manifest.json"));
         fs::remove_dir_all(&root).unwrap();
     }
 

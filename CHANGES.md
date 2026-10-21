@@ -1,5 +1,24 @@
 # Changes
 
+## 2026-10-21 - Update button in dreamos-install
+
+- dreamos-install: new optional manifest key `updatable` (boolean, default
+  `false`). For an installed app with `"updatable": true` the bottom bar
+  shows a blue **Update** button next to **Uninstall**; it asks for
+  confirmation and runs the install script again as root (`Action::Update`),
+  and **View script** shows that script. Invalid values (not a boolean) skip
+  the app with a warning, like any invalid manifest.
+- Set `"updatable": true` in 35 catalog apps and in the `hello-tool` example:
+  their `install.sh` downloads the latest release or runs `apt-get install`,
+  so running it again updates the app. NOT set on `nvidia-driver` (Secure Boot
+  and module signing steps, driver updates come with apt).
+- Tests: `updatable_is_false_unless_the_manifest_says_true` (catalog),
+  `update_reruns_the_install_script` (ui); `cargo test` 25 + 4 pass, clippy
+  clean. Checked on screen (Xvfb, `ubuntu:26.04` container, example catalog):
+  the blue Update button next to Uninstall for the installed Hello Tool.
+  NOT checked: the click on Update (confirmation, run), the button on the
+  real catalog apps, that every flagged install script really updates.
+
 ## 2026-10-21 - FileZilla added to the dreamos-install catalog
 
 - New app `apps/internet/filezilla`: installs `filezilla` from the Ubuntu

@@ -4,6 +4,7 @@
   "check": "check.sh",
   "install": "install.sh",
   "uninstall": "uninstall.sh",
+  "updatable": true,
   "screenshot": "screenshot.png",
   "github": "https://github.com/example/hello-tool",
   "homepage": "https://example.com/hello-tool"

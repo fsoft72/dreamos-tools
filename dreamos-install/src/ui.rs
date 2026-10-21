@@ -35,6 +35,8 @@ const SCROLLBACK_LINES: i64 = 10_000;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Action {
     Install,
+    /// Runs the install script again, for apps that update that way.
+    Update,
     Uninstall,
 }
 
@@ -43,7 +45,7 @@ impl Action {
     /// app folder). None for an uninstall the app does not provide.
     fn script(self, app: &App) -> Option<&str> {
         match self {
-            Action::Install => Some(&app.install_script),
+            Action::Install | Action::Update => Some(&app.install_script),
             Action::Uninstall => app.uninstall_script.as_deref(),
         }
     }
@@ -52,6 +54,7 @@ impl Action {
     fn verb(self) -> &'static str {
         match self {
             Action::Install => "Install",
+            Action::Update => "Update",
             Action::Uninstall => "Uninstall",
         }
     }
@@ -81,6 +84,7 @@ struct Ui {
     last_outcome: RefCell<Option<String>>,
     status_label: Label,
     install_btn: Button,
+    update_btn: Button,
     uninstall_btn: Button,
     view_btn: Button,
     github_btn: Button,
@@ -450,6 +454,7 @@ impl Ui {
         }
 
         self.install_btn.set_visible(false);
+        self.update_btn.set_visible(false);
         self.uninstall_btn.set_visible(false);
         self.view_btn.set_visible(false);
         self.github_btn.set_visible(false);
@@ -483,17 +488,22 @@ impl Ui {
             return;
         }
         self.install_btn.set_visible(matches!(status, Status::NotInstalled | Status::CheckFailed(_)));
+        self.update_btn.set_visible(status == Status::Installed && app.updatable);
         self.uninstall_btn.set_visible(status == Status::Installed && app.uninstall_script.is_some());
-        self.view_btn.set_visible(self.install_btn.is_visible() || self.uninstall_btn.is_visible());
+        self.view_btn.set_visible(
+            self.install_btn.is_visible() || self.update_btn.is_visible() || self.uninstall_btn.is_visible(),
+        );
         self.github_btn.set_visible(app.github.is_some());
         self.homepage_btn.set_visible(app.homepage.is_some());
     }
 
     /// Script the visible action button would run: install when offered,
-    /// otherwise uninstall.
+    /// else update, otherwise uninstall.
     fn offered_action(&self) -> Action {
         if self.install_btn.is_visible() {
             Action::Install
+        } else if self.update_btn.is_visible() {
+            Action::Update
         } else {
             Action::Uninstall
         }
@@ -742,6 +752,8 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
     homepage_btn.set_visible(false);
     let uninstall_btn = Button::with_label(Action::Uninstall.verb());
     uninstall_btn.add_css_class("destructive-action");
+    let update_btn = Button::with_label(Action::Update.verb());
+    update_btn.add_css_class("suggested-action");
     let install_btn = Button::with_label(Action::Install.verb());
     install_btn.add_css_class("suggested-action");
     let actions = GtkBox::new(Orientation::Horizontal, 8);
@@ -757,6 +769,7 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
     actions.append(&github_btn);
     actions.append(&homepage_btn);
     actions.append(&uninstall_btn);
+    actions.append(&update_btn);
     actions.append(&install_btn);
     outer.append(&actions);
 
@@ -780,6 +793,7 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
         last_outcome: RefCell::new(None),
         status_label,
         install_btn,
+        update_btn,
         uninstall_btn,
         view_btn,
         github_btn,
@@ -853,6 +867,13 @@ fn connect_signals(ui: &Rc<Ui>) {
     ui.install_btn.connect_clicked(move |_| {
         if let Some(ui) = weak.upgrade() {
             ui.confirm_and_run(Action::Install);
+        }
+    });
+
+    let weak = Rc::downgrade(ui);
+    ui.update_btn.connect_clicked(move |_| {
+        if let Some(ui) = weak.upgrade() {
+            ui.confirm_and_run(Action::Update);
         }
     });
 
@@ -943,6 +964,33 @@ pub fn load_catalog(root: &Path) -> Result<ScanResult, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Minimal app for the action tests.
+    fn app_with_scripts(uninstall: Option<&str>) -> App {
+        App {
+            dir: PathBuf::from("/cat/app"),
+            name: "App".into(),
+            summary: String::new(),
+            readme: "README.md".into(),
+            check_script: "check.sh".into(),
+            install_script: "install.sh".into(),
+            uninstall_script: uninstall.map(String::from),
+            updatable: true,
+            screenshot: None,
+            icon: None,
+            github: None,
+            homepage: None,
+        }
+    }
+
+    #[test]
+    fn update_reruns_the_install_script() {
+        let app = app_with_scripts(Some("uninstall.sh"));
+        assert_eq!(Action::Update.script(&app), Some("install.sh"));
+        assert_eq!(Action::Update.verb(), "Update");
+        assert_eq!(Action::Install.script(&app), Some("install.sh"));
+        assert_eq!(Action::Uninstall.script(&app), Some("uninstall.sh"));
+    }
 
     #[test]
     fn describe_exit_decodes_wait_status() {

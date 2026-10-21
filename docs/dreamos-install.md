@@ -26,9 +26,12 @@ Developer-facing build/test notes: [`dreamos-install/README.md`](../dreamos-inst
 4. Optionally click **View script** to read, in a modal window with
    syntax highlighting (Esc closes it), the script the next button
    would run.
-   Then click **Install** (shown when the app is not installed) or
+   Then click **Install** (shown when the app is not installed),
+   **Update** (blue, shown when it is installed and its manifest says
+   `"updatable": true`; it runs the install script again) or
    **Uninstall** (shown when it is installed and provides an uninstall
-   script) and confirm. The script runs in the terminal that replaces
+   script) and confirm. With **Update** shown, **View script** shows the
+   install script it runs. The script runs in the terminal that replaces
    the description; navigation is locked until it ends.
 5. When it ends, the bottom bar shows the outcome and the new status
    (the app is checked again). Click **Back** to return to the
@@ -75,6 +78,7 @@ inside the app folder. Only `name` is mandatory; unknown keys are an error.
   "check": "check.sh",
   "install": "install.sh",
   "uninstall": "uninstall.sh",
+  "updatable": true,
   "screenshot": "screenshot.png",
   "github": "https://github.com/GNOME/gimp",
   "homepage": "https://www.gimp.org/"
@@ -89,6 +93,7 @@ inside the app folder. Only `name` is mandatory; unknown keys are an error.
 | `check`      | `check.sh`   | Script that exits `0` when the app is installed        |
 | `install`    | `install.sh` | Install script                                         |
 | `uninstall`  | none         | Uninstall script; without it no Uninstall button       |
+| `updatable`  | `false`      | `true` when running the install script again updates the app (it downloads the latest release or runs `apt-get install`); adds an **Update** button when the app is installed |
 | `screenshot` | none         | Screenshot of the app                                  |
 | `github`     | none         | http(s) URL; adds a **Github Page** button next to **View script** |
 | `homepage`   | none         | http(s) URL; adds a **Home page** button next to **View script**   |

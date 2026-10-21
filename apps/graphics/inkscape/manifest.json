@@ -5,6 +5,7 @@
   "check": "check.sh",
   "install": "install.sh",
   "uninstall": "uninstall.sh",
+  "updatable": true,
   "screenshot": "screenshot.png",
   "homepage": "https://inkscape.org/"
 }
