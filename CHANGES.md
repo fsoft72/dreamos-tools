@@ -1,5 +1,31 @@
 # Changes
 
+## 2026-10-21 - dreamos-install .deb and apt repository
+
+- New `scripts/build-deb.sh [--version V] [--skip-build]`: builds
+  `dist/deb/dreamos-install_<version>_amd64.deb` with the binary
+  (`/usr/bin`), the whole `apps/` catalog (`/usr/share/dreamos-install/apps`),
+  the desktop entry and the icon (copies in `packaging/`, taken from
+  dreamos-ubuntu). `Depends` comes from `dpkg-shlibdeps` plus `polkitd,
+  pkexec`. Default version `0.1.<YYYYMMDD>.<HHMM>`.
+- New `scripts/build-apt-repo.sh`: signed apt repository (`stable main`,
+  last 5 versions kept) for GitHub Pages, key file `dreamos-tools.gpg`.
+- New `scripts/release.sh [-y]`: tags `v0.1.<YYYYMMDD>.<HHMM>` and pushes
+  branch and tag; refuses a dirty tree, a detached HEAD and an existing tag.
+- New `.github/workflows/release-deb.yml`: on a `v*` tag builds the `.deb` in
+  `ubuntu:26.04`, attaches it to the Release and publishes `gh-pages` with the
+  secret `APT_GPG_PRIVATE_KEY`.
+- Tests in `scripts/tests/`. Checked: `.deb` built and tested in a clean
+  `ubuntu:26.04` container (33 manifests and 33 `install.sh`, no missing
+  libraries, install over existing unowned files, removal); apt repository
+  served over HTTP with a throwaway key (pruning to 5, `apt update`, install,
+  `apt upgrade` to a newer version); `release.sh` against a temporary
+  repository and remote; the workflow parses as YAML. NOT checked: the
+  workflow on GitHub (never run), the real key and Pages, a real
+  `release.sh` push, `apt upgrade` from the real repository, the program
+  running from the installed package. dreamos-ubuntu is unchanged (its ISO
+  keeps its own copy of binary and catalog).
+
 ## 2026-10-21 - Xodus Nexus added to the dreamos-install catalog
 
 - New app `apps/games/xodus-nexus`: installs the latest `x86_64` AppImage
