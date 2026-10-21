@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DreamOS Installer
+Comment=Install applications from the DreamOS catalog
+Exec=dreamos-install
+Icon=dreamos-installer
+Terminal=false
+Categories=System;PackageManager;
