@@ -1,5 +1,15 @@
 # Changes
 
+## 2026-10-21 - FileZilla added to the dreamos-install catalog
+
+- New app `apps/internet/filezilla`: installs `filezilla` from the Ubuntu
+  repositories with `apt` (3.69.6 on 26.04); the check is the dpkg status,
+  uninstall is `apt-get remove`. FileZilla has no GitHub repository, so the
+  manifest only has `homepage`. Icon: the 480x480 icon of the package scaled to
+  128x128; screenshot taken from the package running in Xvfb. Checked: install,
+  check, uninstall in a clean `ubuntu:26.04` container, no missing libraries.
+  NOT checked: the app on a real desktop, in the catalog UI.
+
 ## 2026-10-21 - Telegram Desktop added to the dreamos-install catalog
 
 - New app `apps/internet/telegram-desktop`: `telegram-desktop` is not in the
