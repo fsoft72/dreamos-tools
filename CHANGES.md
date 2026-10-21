@@ -1,5 +1,18 @@
 # Changes
 
+## 2026-10-21 - Telegram Desktop added to the dreamos-install catalog
+
+- New app `apps/internet/telegram-desktop`: `telegram-desktop` is not in the
+  Ubuntu 26.04 archive, so it installs the latest `td-setup-linux-x64`
+  archive from GitHub Releases (SHA256 verified against the `digest` GitHub
+  publishes, read with `jq`) into `/opt/telegram-desktop`, with
+  `/usr/local/bin/telegram-desktop`, a menu entry (handles `tg://` links) and
+  the pango, cairo, freetype and fontconfig libraries via `apt`. The app
+  cannot update itself in `/opt`: re-run Install. Icon and screenshot from
+  the project repository. Checked: install, reinstall, check, uninstall in a
+  clean `ubuntu:26.04` container, no missing libraries (`ldd`). NOT checked:
+  the app running (libraries it loads at run time, Wayland), in the catalog UI.
+
 ## 2026-10-21 - RustDesk added to the dreamos-install catalog
 
 - New app `apps/internet/rustdesk`: installs the latest standard `x86_64` deb
