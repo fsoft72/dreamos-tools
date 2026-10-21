@@ -1,0 +1,11 @@
+{
+  "name": "Blockbench",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/JannisX11/blockbench",
+  "homepage": "https://www.blockbench.net/"
+}

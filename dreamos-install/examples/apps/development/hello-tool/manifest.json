@@ -1,0 +1,10 @@
+{
+  "name": "Hello Tool",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/example/hello-tool",
+  "homepage": "https://example.com/hello-tool"
+}

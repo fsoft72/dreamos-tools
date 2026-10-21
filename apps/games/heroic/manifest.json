@@ -1,0 +1,11 @@
+{
+  "name": "Heroic Games Launcher",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher",
+  "homepage": "https://heroicgameslauncher.com/"
+}

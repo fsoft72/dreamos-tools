@@ -1,0 +1,6 @@
+{
+  "name": "Always There",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh"
+}

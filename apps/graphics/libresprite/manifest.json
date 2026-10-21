@@ -1,0 +1,11 @@
+{
+  "name": "LibreSprite",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/LibreSprite/LibreSprite",
+  "homepage": "https://libresprite.github.io/"
+}

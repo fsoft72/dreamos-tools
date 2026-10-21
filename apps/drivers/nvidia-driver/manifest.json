@@ -1,0 +1,9 @@
+{
+  "name": "NVIDIA Driver",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "homepage": "https://wiki.debian.org/NvidiaGraphicsDrivers"
+}

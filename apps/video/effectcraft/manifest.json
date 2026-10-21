@@ -1,0 +1,11 @@
+{
+  "name": "EffectCraft",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/storytold/effectcraft",
+  "homepage": "https://getartcraft.com/apps/effectcraft"
+}

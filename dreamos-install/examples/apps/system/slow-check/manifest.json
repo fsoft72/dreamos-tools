@@ -1,0 +1,6 @@
+{
+  "name": "Slow Check",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh"
+}

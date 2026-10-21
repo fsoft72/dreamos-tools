@@ -1,5 +1,20 @@
 # Changes
 
+## 2026-10-21 - manifest.json for every dreamos-install app
+
+- dreamos-install: each app folder now needs a `manifest.json` (name,
+  icon, readme, check, install, uninstall, screenshot, github, homepage;
+  paths relative to the manifest, defaults for the conventional file
+  names). The app name comes from the manifest, not from the README.
+  Invalid or missing manifests skip the app with a warning. New
+  dependencies: `serde`, `serde_json`.
+- dreamos-install: new **Github Page** and **Home page** buttons next to
+  **View script**, shown when the manifest defines `github` / `homepage`
+  (opened in the default browser).
+- Added `manifest.json` to the 32 catalog apps and to the example apps.
+  Github / home links come from the app READMEs and upstream projects;
+  apps without a GitHub repository only have `homepage`.
+
 ## 2026-10-17 - RetroArch added to the dreamos-install catalog
 
 - New app `apps/games/retroarch`: `apt-get install retroarch`, with the

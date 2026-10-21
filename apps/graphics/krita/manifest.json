@@ -1,0 +1,11 @@
+{
+  "name": "Krita",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/KDE/krita",
+  "homepage": "https://krita.org/"
+}

@@ -1,5 +1,5 @@
 use crate::render::render_document;
-use dreamos_install::catalog::{self, App, AppPos, Category, ScanResult, INSTALL_SCRIPT, README_FILE, UNINSTALL_SCRIPT};
+use dreamos_install::catalog::{self, App, AppPos, Category, ScanResult};
 use dreamos_install::elevate::{script_argv, SKIP_ROOT_ENV};
 use dreamos_install::markdown::{self, escape_markup};
 use dreamos_install::status::{invoking_user, run_check, Status, APP_DIR_ENV, CHECK_TIMEOUT, USER_ENV};
@@ -39,11 +39,12 @@ enum Action {
 }
 
 impl Action {
-    /// Script file run for this action.
-    fn script(self) -> &'static str {
+    /// Script file of `app` run for this action (path relative to the
+    /// app folder). None for an uninstall the app does not provide.
+    fn script(self, app: &App) -> Option<&str> {
         match self {
-            Action::Install => INSTALL_SCRIPT,
-            Action::Uninstall => UNINSTALL_SCRIPT,
+            Action::Install => Some(&app.install_script),
+            Action::Uninstall => app.uninstall_script.as_deref(),
         }
     }
 
@@ -82,6 +83,8 @@ struct Ui {
     install_btn: Button,
     uninstall_btn: Button,
     view_btn: Button,
+    github_btn: Button,
+    homepage_btn: Button,
     back_btn: Button,
 }
 
@@ -305,7 +308,7 @@ impl Ui {
             self.app_list.append(&row);
             labels.push(label);
             if !self.statuses.borrow().contains_key(&app.dir) {
-                unchecked.push(app.dir.clone());
+                unchecked.push((app.dir.clone(), app.check_script.clone()));
             }
         }
         *self.visible.borrow_mut() = entries;
@@ -326,7 +329,7 @@ impl Ui {
         let Some(app) = self.current_app() else {
             return;
         };
-        let readme = app.dir.join(README_FILE);
+        let readme = app.dir.join(&app.readme);
         match std::fs::read_to_string(&readme) {
             Ok(source) => {
                 let content = render_document(&markdown::parse(&source), &app.dir);
@@ -345,26 +348,28 @@ impl Ui {
         self.stack.set_visible_child_name(PAGE_PLACEHOLDER);
     }
 
-    /// Runs the check script of every app in `dirs` on background threads
-    /// and updates the cache and the UI as results arrive.
-    fn start_checks(self: &Rc<Self>, dirs: Vec<PathBuf>) {
-        if dirs.is_empty() {
+    /// Runs the check script of every `(app dir, check script)` pair in
+    /// `checks` on background threads and updates the cache and the UI as
+    /// results arrive.
+    fn start_checks(self: &Rc<Self>, checks: Vec<(PathBuf, String)>) {
+        if checks.is_empty() {
             return;
         }
         let (tx, rx) = mpsc::channel::<(PathBuf, Status)>();
-        for dir in &dirs {
+        for (dir, check_script) in &checks {
             self.statuses.borrow_mut().insert(dir.clone(), Status::Checking);
             let tx = tx.clone();
             let dir = dir.clone();
+            let check_script = check_script.clone();
             std::thread::spawn(move || {
-                let status = run_check(&dir, CHECK_TIMEOUT);
+                let status = run_check(&dir, &check_script, CHECK_TIMEOUT);
                 // The receiver only goes away with the main loop; nothing to do then.
                 let _ = tx.send((dir, status));
             });
         }
         drop(tx);
         let ui = Rc::clone(self);
-        let mut pending = dirs.len();
+        let mut pending = checks.len();
         glib::source::timeout_add_local(CHECK_POLL, move || {
             while let Ok((dir, status)) = rx.try_recv() {
                 ui.statuses.borrow_mut().insert(dir, status);
@@ -394,6 +399,8 @@ impl Ui {
         self.install_btn.set_visible(false);
         self.uninstall_btn.set_visible(false);
         self.view_btn.set_visible(false);
+        self.github_btn.set_visible(false);
+        self.homepage_btn.set_visible(false);
         if running {
             self.status_label.set_text("Running...");
             return;
@@ -423,8 +430,10 @@ impl Ui {
             return;
         }
         self.install_btn.set_visible(matches!(status, Status::NotInstalled | Status::CheckFailed(_)));
-        self.uninstall_btn.set_visible(status == Status::Installed && app.has_uninstall);
+        self.uninstall_btn.set_visible(status == Status::Installed && app.uninstall_script.is_some());
         self.view_btn.set_visible(self.install_btn.is_visible() || self.uninstall_btn.is_visible());
+        self.github_btn.set_visible(app.github.is_some());
+        self.homepage_btn.set_visible(app.homepage.is_some());
     }
 
     /// Script the visible action button would run: install when offered,
@@ -443,7 +452,9 @@ impl Ui {
         let Some(app) = self.current_app() else {
             return;
         };
-        let script = self.offered_action().script();
+        let Some(script) = self.offered_action().script(app) else {
+            return;
+        };
         let path = app.dir.join(script);
         match std::fs::read_to_string(&path) {
             Ok(source) => show_script_window(&self.window, &format!("{} - {script}", app.name), &source),
@@ -458,10 +469,36 @@ impl Ui {
         }
     }
 
+    /// Opens an http(s) link of the selected app in the default browser;
+    /// `pick` chooses which link.
+    fn open_link(&self, pick: fn(&App) -> Option<&String>) {
+        let Some(url) = self.current_app().and_then(pick) else {
+            return;
+        };
+        let parent = self.window.clone();
+        gtk4::UriLauncher::new(url).launch(Some(&self.window), None::<&gio::Cancellable>, {
+            let url = url.clone();
+            move |result| {
+                let Err(e) = result else {
+                    return;
+                };
+                AlertDialog::builder()
+                    .modal(true)
+                    .message("Cannot open the link")
+                    .detail(format!("{url}: {e}"))
+                    .build()
+                    .show(Some(&parent));
+            }
+        });
+    }
+
     /// Asks for confirmation, then runs the action's script for the
     /// selected app.
     fn confirm_and_run(self: &Rc<Self>, action: Action) {
         let Some(app) = self.current_app() else {
+            return;
+        };
+        let Some(script) = action.script(app) else {
             return;
         };
         let dialog = AlertDialog::builder()
@@ -469,7 +506,7 @@ impl Ui {
             .message(format!("{} {}?", action.verb(), app.name))
             .detail(format!(
                 "This runs {} from {} as root. The administrator password is asked next.",
-                action.script(),
+                script,
                 app.dir.display()
             ))
             .buttons(["Cancel", action.verb()])
@@ -491,10 +528,13 @@ impl Ui {
         let Some(app) = self.current_app().cloned() else {
             return;
         };
+        let Some(script) = action.script(&app) else {
+            return;
+        };
         self.running.set(true);
         self.terminal.reset(true, true);
         self.terminal.feed(
-            format!("\x1b[1m==> {} {}: bash {}\x1b[0m\r\n\r\n", action.verb(), app.name, action.script())
+            format!("\x1b[1m==> {} {}: bash {}\x1b[0m\r\n\r\n", action.verb(), app.name, script)
                 .as_bytes(),
         );
         self.last_outcome.replace(None);
@@ -504,7 +544,7 @@ impl Ui {
         let dir = app.dir.to_string_lossy().into_owned();
         let user = invoking_user().unwrap_or_default();
         let elevate = std::env::var_os(SKIP_ROOT_ENV).is_none() && !_is_root();
-        let argv = script_argv(&app.dir, action.script(), &[(APP_DIR_ENV, &dir), (USER_ENV, &user)], elevate);
+        let argv = script_argv(&app.dir, script, &[(APP_DIR_ENV, &dir), (USER_ENV, &user)], elevate);
         let argv: Vec<String> = argv.iter().map(|a| a.to_string_lossy().into_owned()).collect();
         let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
         // An explicit copy of our environment: an empty envv could be read as "no variables".
@@ -537,7 +577,7 @@ impl Ui {
         self.back_btn.set_visible(true);
         if let Some(app) = self.current_app() {
             self.statuses.borrow_mut().remove(&app.dir);
-            self.start_checks(vec![app.dir.clone()]);
+            self.start_checks(vec![(app.dir.clone(), app.check_script.clone())]);
         }
         self.refresh();
     }
@@ -640,6 +680,10 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
     back_btn.set_visible(false);
     let view_btn = Button::with_label("View script");
     view_btn.set_visible(false);
+    let github_btn = Button::with_label("Github Page");
+    github_btn.set_visible(false);
+    let homepage_btn = Button::with_label("Home page");
+    homepage_btn.set_visible(false);
     let uninstall_btn = Button::with_label(Action::Uninstall.verb());
     uninstall_btn.add_css_class("destructive-action");
     let install_btn = Button::with_label(Action::Install.verb());
@@ -654,6 +698,8 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
     actions.append(&status_label);
     actions.append(&back_btn);
     actions.append(&view_btn);
+    actions.append(&github_btn);
+    actions.append(&homepage_btn);
     actions.append(&uninstall_btn);
     actions.append(&install_btn);
     outer.append(&actions);
@@ -680,6 +726,8 @@ pub fn build_window(app: &Application, root: &Path, scan: Result<ScanResult, Str
         install_btn,
         uninstall_btn,
         view_btn,
+        github_btn,
+        homepage_btn,
         back_btn,
     });
     connect_signals(&ui);
@@ -763,6 +811,20 @@ fn connect_signals(ui: &Rc<Ui>) {
     ui.view_btn.connect_clicked(move |_| {
         if let Some(ui) = weak.upgrade() {
             ui.view_script();
+        }
+    });
+
+    let weak = Rc::downgrade(ui);
+    ui.github_btn.connect_clicked(move |_| {
+        if let Some(ui) = weak.upgrade() {
+            ui.open_link(|app| app.github.as_ref());
+        }
+    });
+
+    let weak = Rc::downgrade(ui);
+    ui.homepage_btn.connect_clicked(move |_| {
+        if let Some(ui) = weak.upgrade() {
+            ui.open_link(|app| app.homepage.as_ref());
         }
     });
 

@@ -1,0 +1,11 @@
+{
+  "name": "Blender",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/blender/blender",
+  "homepage": "https://www.blender.org/"
+}

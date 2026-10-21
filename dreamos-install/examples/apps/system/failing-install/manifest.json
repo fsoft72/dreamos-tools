@@ -1,0 +1,6 @@
+{
+  "name": "Failing Install",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh"
+}

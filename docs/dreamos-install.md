@@ -47,9 +47,10 @@ the `DREAMOS_INSTALL_DIR` environment variable, or
 apps/
   graphics/              -> category "Graphics"
     gimp/                -> one app
-      README.md          (required)
-      install.sh         (required)
-      check.sh           (required)
+      manifest.json      (required)
+      README.md          (default readme)
+      install.sh         (default install script)
+      check.sh           (default check script)
       uninstall.sh       (optional)
       icon.png           (optional, shown next to the app in the list)
       screenshot.png     (any file the README references)
@@ -57,8 +58,40 @@ apps/
 
 - Category name = folder name with a capital first letter. Categories
   with no valid app are hidden. Folders starting with `.` are ignored.
-- An app folder missing `README.md`, `install.sh` or `check.sh` is
-  skipped (a warning is printed on stderr).
+- An app folder with a missing or invalid `manifest.json`, or without
+  the files it names for the README, check or install script, is skipped
+  (a warning is printed on stderr).
+
+### manifest.json
+
+Describes the app. Every path is relative to the manifest and must stay
+inside the app folder. Only `name` is mandatory; unknown keys are an error.
+
+```json
+{
+  "name": "GIMP",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/GNOME/gimp",
+  "homepage": "https://www.gimp.org/"
+}
+```
+
+| Key          | Default      | Meaning                                                |
+| ------------ | ------------ | ------------------------------------------------------ |
+| `name`       | -            | Program name shown in the list and dialogs             |
+| `icon`       | `icon.png`   | Icon of the app list (none shown when the file is absent) |
+| `readme`     | `README.md`  | Markdown description shown in the detail pane          |
+| `check`      | `check.sh`   | Script that exits `0` when the app is installed        |
+| `install`    | `install.sh` | Install script                                         |
+| `uninstall`  | none         | Uninstall script; without it no Uninstall button       |
+| `screenshot` | none         | Screenshot of the app                                  |
+| `github`     | none         | http(s) URL; adds a **Github Page** button next to **View script** |
+| `homepage`   | none         | http(s) URL; adds a **Home page** button next to **View script**   |
 
 ### icon.png
 

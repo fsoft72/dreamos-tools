@@ -1,0 +1,8 @@
+{
+  "name": "Demo Paint",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "screenshot": "screenshot.png"
+}

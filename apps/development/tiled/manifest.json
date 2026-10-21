@@ -1,0 +1,11 @@
+{
+  "name": "Tiled",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/mapeditor/tiled",
+  "homepage": "https://www.mapeditor.org/"
+}
