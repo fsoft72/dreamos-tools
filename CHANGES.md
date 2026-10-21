@@ -1,5 +1,15 @@
 # Changes
 
+## 2026-10-21 - RustDesk added to the dreamos-install catalog
+
+- New app `apps/internet/rustdesk`: installs the latest standard `x86_64` deb
+  from GitHub Releases with `apt` (not the sciter, unattended-wayland or
+  aarch64 builds); the check is the `rustdesk` dpkg status, uninstall is
+  `apt-get remove`. Icon from the project `res/`, screenshot from its README.
+  Checked: install, check, uninstall in a clean `ubuntu:26.04` container (no
+  missing libraries). The deb has no published checksum, so only HTTPS
+  protects the download. NOT checked: the app running, in the catalog UI.
+
 ## 2026-10-21 - dreamos-install .deb and apt repository
 
 - New `scripts/build-deb.sh [--version V] [--skip-build]`: builds
