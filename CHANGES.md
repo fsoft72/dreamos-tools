@@ -1,5 +1,15 @@
 # Changes
 
+## 2026-10-28 - rqbit added to the dreamos-install catalog
+
+- New app `apps/internet/rqbit`: installs the latest `rqbit-desktop_*_amd64.deb`
+  from GitHub Releases with `apt` (9.0.1), `"updatable": true` so re-running
+  install updates it. The check is the dpkg status of `rqbit-desktop`,
+  uninstall is `apt-get remove`. Icon: the 128x128 icon of the package;
+  screenshot supplied by the user. Checked: install, check, uninstall in a
+  clean `ubuntu:26.04` container, no missing libraries, the app starts under
+  Xvfb. NOT checked: the app on a real desktop, in the catalog UI.
+
 ## 2026-10-21 - Update button in dreamos-install
 
 - dreamos-install: new optional manifest key `updatable` (boolean, default
