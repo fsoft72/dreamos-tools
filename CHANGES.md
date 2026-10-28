@@ -1,5 +1,20 @@
 # Changes
 
+## 2026-10-28 - Spacedrive added to the dreamos-install catalog
+
+- New app `apps/internet/spacedrive`: installs the newest `v2` release of
+  `Spacedrive-linux-x86_64.deb` from GitHub Releases with `apt`
+  (v2.0.0-alpha.2, a pre-release), `"updatable": true`. The latest stable
+  0.4.3 was not used: its deb needs ffmpeg 7 (`libavcodec.so.61`) without
+  declaring it, and Ubuntu 26.04 only ships ffmpeg 8, so it cannot start. The
+  script reads `releases?per_page=30` (`releases/latest` ignores pre-releases)
+  and picks the first `v2*` deb, skipping nightly. The check is the dpkg status
+  of `spacedrive`, uninstall is `apt-get remove`. Icon: the 128x128 icon of the
+  package; screenshot supplied by the user (webp converted to a 1600px PNG).
+  Checked: install, check, uninstall in a clean `ubuntu:26.04` container, no
+  missing libraries. NOT checked: the app launching, on a real desktop, in the
+  catalog UI.
+
 ## 2026-10-28 - rqbit added to the dreamos-install catalog
 
 - New app `apps/internet/rqbit`: installs the latest `rqbit-desktop_*_amd64.deb`

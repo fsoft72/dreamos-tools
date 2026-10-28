@@ -1,0 +1,12 @@
+{
+  "name": "Spacedrive",
+  "icon": "icon.png",
+  "readme": "README.md",
+  "check": "check.sh",
+  "install": "install.sh",
+  "uninstall": "uninstall.sh",
+  "updatable": true,
+  "screenshot": "screenshot.png",
+  "github": "https://github.com/spacedriveapp/spacedrive",
+  "homepage": "https://spacedrive.com"
+}
