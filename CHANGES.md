@@ -1,5 +1,16 @@
 # Changes
 
+## 2026-11-01 - git-exp added to the dreamos-install catalog
+
+- New app `apps/development/git-exp`: installs the latest `x86_64` binary of
+  `fsoft72/git-exp` from GitHub Releases into `/opt/git-exp`, verified against
+  the release `sha256sums.txt` (the assets carry no GitHub digest). Creates a
+  `git-exp` command and a menu entry; `updatable` is true. Icon: `/ramdisk/git-exp.png`
+  scaled to 128x128; screenshot: `assets/images/ui.png` of the project.
+  Checked: install, check, uninstall in a clean `ubuntu:26.04` container, no
+  missing linked libraries. NOT checked: the app on a real desktop (GL and
+  windowing libraries are loaded at runtime), in the catalog UI.
+
 ## 2026-10-28 - Spacedrive added to the dreamos-install catalog
 
 - New app `apps/internet/spacedrive`: installs the newest `v2` release of
