@@ -8,6 +8,8 @@
   project scaled to 128x128; screenshot: `docs/images/project-website.png`.
   Checked: install, check, uninstall in a clean `ubuntu:24.04` container.
   NOT checked: the app on a real desktop, the catalog UI.
+- Added the `homepage` (`https://getartcraft.com/apps/craft-anything`) to the
+  Craft Anything manifest and README.
 
 ## 2026-11-03 - OmniDiff added to the dreamos-install catalog
 

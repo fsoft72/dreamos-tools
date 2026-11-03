@@ -7,5 +7,6 @@
   "uninstall": "uninstall.sh",
   "updatable": true,
   "screenshot": "screenshot.png",
-  "github": "https://github.com/storytold/craft-anything"
+  "github": "https://github.com/storytold/craft-anything",
+  "homepage": "https://getartcraft.com/apps/craft-anything"
 }

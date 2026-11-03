@@ -11,4 +11,4 @@ Open-source, clean-room engine written in Rust: point it at a website, app or ga
 - Re-run **Install** to update to the latest release.
 - Uninstall keeps your projects and settings in your home folder.
 
-More information on [the GitHub page](https://github.com/storytold/craft-anything).
+More information on [the GitHub page](https://github.com/storytold/craft-anything) and the [home page](https://getartcraft.com/apps/craft-anything).
