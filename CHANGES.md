@@ -1,5 +1,14 @@
 # Changes
 
+## 2026-11-03 - Craft Anything added to the dreamos-install catalog
+
+- New app `apps/development/craft-anything`: installs the latest `x86_64` deb of
+  `storytold/craft-anything` from GitHub Releases with `apt`, verified against the
+  release `SHA256SUMS.txt`; `updatable` is true. Icon: the 256x256 app icon of the
+  project scaled to 128x128; screenshot: `docs/images/project-website.png`.
+  Checked: install, check, uninstall in a clean `ubuntu:24.04` container.
+  NOT checked: the app on a real desktop, the catalog UI.
+
 ## 2026-11-03 - OmniDiff added to the dreamos-install catalog
 
 - New app `apps/development/omnidiff`: installs the latest static `x86_64` (musl)
