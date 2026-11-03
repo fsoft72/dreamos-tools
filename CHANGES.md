@@ -1,5 +1,16 @@
 # Changes
 
+## 2026-11-03 - OmniDiff added to the dreamos-install catalog
+
+- New app `apps/development/omnidiff`: installs the latest static `x86_64` (musl)
+  build of `ivankovic/omnidiff` from GitHub Releases into `/opt/omnidiff`,
+  verified against the release `SHA256SUMS.txt`. Creates an `omnidiff` command
+  and a menu entry that opens in a terminal (it is a TUI); `updatable` is true.
+  Screenshot: `/ramdisk/omnidiff.png`. The icon is a generated 128x128 image
+  (the project ships none). Checked: install, check, uninstall in a clean
+  `ubuntu:24.04` container, `omnidiff --version` gives 0.3.0. NOT checked: the
+  catalog UI, the menu entry on a real desktop.
+
 ## 2026-11-01 - git-exp added to the dreamos-install catalog
 
 - New app `apps/development/git-exp`: installs the latest `x86_64` binary of
